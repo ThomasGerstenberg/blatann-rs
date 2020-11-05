@@ -1,7 +1,10 @@
+#![allow(dead_code)]
+
 #[macro_use]
 extern crate num_derive;
 #[macro_use]
 extern crate lazy_static;
+
 
 pub mod gap;
 pub mod nrf_error;
@@ -13,16 +16,21 @@ mod utils;
 #[allow(non_camel_case_types)]
 #[allow(non_snake_case)]
 #[allow(dead_code)]
-mod driver;  // Auto-genned C bindings
+mod driver;
+mod event_publisher;  // Auto-genned C bindings
 
-use std::sync::{Mutex, Arc};
+use std::sync::{Mutex, Arc, mpsc};
+use std::sync::atomic::{AtomicBool, Ordering};
 use crate::gap::types::*;
 use crate::nrf_error::NrfError;
-use std::sync::atomic::{AtomicBool, Ordering};
+use crate::events::BleEvent;
+use crate::common::events::BleCommonEvent;
+use crate::gap::events::{BleGapEvent, BleGapTimeout};
+use crate::event_publisher::EventPublisher;
+use std::thread;
 
 
 #[allow(dead_code)]
-#[derive(Debug)]
 pub struct NrfDriver {
     pub(crate) adapter: Mutex<*mut driver::adapter_t>,
     link_layer: Mutex<*mut driver::data_link_layer_t>,
@@ -30,6 +38,13 @@ pub struct NrfDriver {
     log_driver_comms: bool,
     is_open: AtomicBool,
     port: String,
+    id: usize,
+    pub events: NrfDriverEvents,
+}
+
+#[allow(dead_code)]
+pub struct NrfDriverEvents {
+    pub gap_timeout: EventPublisher<NrfDriver, BleGapTimeout>
 }
 
 impl NrfDriver {
@@ -44,14 +59,18 @@ impl NrfDriver {
             let link_layer = driver::sd_rpc_data_link_layer_create_bt_three_wire(phy_layer, 100);
             let transport_layer = driver::sd_rpc_transport_layer_create(link_layer, 100);
             let rpc_adapter = driver::sd_rpc_adapter_create(transport_layer);
-
+            let id = (*rpc_adapter).internal as usize;
             Self {
                 adapter: Mutex::new(rpc_adapter),
                 link_layer: Mutex::new(link_layer),
                 transport_layer: Mutex::new(transport_layer),
                 log_driver_comms,
-                is_open: AtomicBool::new(false),
                 port,
+                id,
+                is_open: AtomicBool::new(false),
+                events: NrfDriverEvents {
+                    gap_timeout: EventPublisher::new()
+                }
             }
         }
     }
@@ -141,6 +160,24 @@ impl NrfDriver {
 
         NrfError::make_result(err)
     }
+
+    fn process_event(&self, ble_event: &BleEvent) {
+        match ble_event {
+            BleEvent::Common(sub_event) => {
+                match sub_event {
+                    BleCommonEvent::MemRequest(_) => {}
+                    BleCommonEvent::MemRelease(_) => {}
+                }
+            }
+            BleEvent::Gap(sub_event) => {
+                match sub_event {
+                    BleGapEvent::Timeout(e) => {
+                        self.events.gap_timeout.dispatch(&self, &e)
+                    }
+                }
+            }
+        }
+    }
 }
 
 
@@ -157,36 +194,54 @@ impl Drop for NrfDriver {
 unsafe impl Send for NrfDriver {}
 unsafe impl Sync for NrfDriver {}
 
+pub struct NrfDriverThreadCoordinator {
+    driver: Arc<NrfDriver>,
+    sender: mpsc::Sender<BleEvent>,
+}
+
 pub struct NrfDriverManager {
-    drivers: Mutex<Vec<Arc<NrfDriver>>>
+    coordinators: Mutex<Vec<NrfDriverThreadCoordinator>>
 }
 
 impl NrfDriverManager {
     pub fn new() -> Self {
         Self {
-            drivers: Mutex::new(vec![])
+            coordinators: Mutex::new(vec![])
         }
     }
 
     pub fn create(&mut self, port: String, baud: u32, log_driver_comms: bool) -> Arc<NrfDriver> {
-        let mut drivers = self.drivers.lock().unwrap();
-        let driver = Arc::new(NrfDriver::new(port, baud, log_driver_comms));
-        drivers.push(Arc::clone(&driver));
+        let driver = Arc::new(NrfDriver::new(port.clone(), baud, log_driver_comms));
+        let (sender, receiver) = mpsc::channel();
 
-        driver
+        let mut coordinators = self.coordinators.lock().unwrap();
+        coordinators.push(NrfDriverThreadCoordinator {
+            driver: Arc::clone(&driver),
+            sender
+        });
+
+        let thread_driver = Arc::clone(&driver);
+        thread::Builder::new().name(format!("{}_Thread", port)).spawn(move || {
+            event_loop(thread_driver, receiver)
+        }).unwrap();
+
+        return Arc::clone(&driver);
     }
 
     pub fn remove(&mut self, driver: Arc<NrfDriver>) {
-        let mut drivers = self.drivers.lock().unwrap();
-        drivers.retain(|x| *x.port != driver.port)
+        let mut coordinators = self.coordinators.lock().unwrap();
+        coordinators.retain(|x| { x.driver.port != driver.port })
     }
 
-    pub(crate) fn find_by_adapter(&self, adapter: *mut driver::adapter_t) -> Option<Arc<NrfDriver>> {
-        let drivers = self.drivers.lock().unwrap();
-        for d in &*drivers {
-            let a = *d.adapter.lock().unwrap();
-            if unsafe {std::ptr::eq((*adapter).internal, (*a).internal)} {
-                return Some(d.clone())
+    pub(crate) fn find_by_adapter(&self, adapter: *mut driver::adapter_t) -> Option<NrfDriverThreadCoordinator> {
+        let adapter_id = unsafe { (*adapter).internal as usize };
+        let coordinators = self.coordinators.lock().unwrap();
+        for x in &*coordinators {
+            if x.driver.id == adapter_id {
+                return Some(NrfDriverThreadCoordinator {
+                    driver: Arc::clone(&x.driver),
+                    sender: x.sender.clone()
+                });
             }
         }
         return None
@@ -199,12 +254,33 @@ lazy_static! {
 }
 
 
+fn event_loop(driver: Arc<NrfDriver>, receiver: mpsc::Receiver<BleEvent>) {
+    loop {
+        let ble_event = match receiver.recv() {
+            Ok(e) => e,
+            Err(_) => return
+        };
+        {
+            driver.process_event(&ble_event);
+        }
+    }
+}
+
+
 #[no_mangle]
-unsafe extern "C" fn event_handler(adapter: *mut driver::adapter_t, _ble_event: *mut driver::ble_evt_t) {
-    let driver = match DRIVER_MANAGER.lock().unwrap().find_by_adapter(adapter) {
+unsafe extern "C" fn event_handler(adapter: *mut driver::adapter_t, ble_event: *mut driver::ble_evt_t) {
+    let manager = DRIVER_MANAGER.lock().unwrap();
+    let coordinator = match manager.find_by_adapter(adapter) {
         None => return,
         Some(x) => x,
     };
-
-    println!("Got event for {}", driver.port);
+    println!("Got event for {}", coordinator.driver.port);
+    match BleEvent::from_c(ble_event) {
+        None => {
+            println!("Unable to convert event, id {}", (*ble_event).header.evt_id);
+        }
+        Some(event) => {
+            coordinator.sender.send(event);
+        }
+    }
 }

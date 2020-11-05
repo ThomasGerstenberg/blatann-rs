@@ -3,6 +3,7 @@ use crate::gap::events::{BleGapEvent, BleGapEventId};
 use crate::driver::ble_evt_t;
 
 
+#[derive(Copy, Clone, Debug)]
 pub enum BleEvent {
     Common(BleCommonEvent),
     Gap(BleGapEvent)

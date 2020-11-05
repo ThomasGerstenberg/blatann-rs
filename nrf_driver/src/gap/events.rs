@@ -18,25 +18,25 @@ impl BleGapEventId {
 
 #[derive(Copy, Clone, Debug)]
 pub enum BleGapEvent {
-    Timeout(Timeout),
+    Timeout(BleGapTimeout),
 }
 
 impl BleGapEvent {
     pub unsafe fn from_c(id: BleGapEventId, e: *const driver::ble_gap_evt_t) -> Self {
          match id {
-            BleGapEventId::Timeout => BleGapEvent::Timeout(Timeout::from_c((*e).conn_handle, &(*e).params.timeout)),
+            BleGapEventId::Timeout => BleGapEvent::Timeout(BleGapTimeout::from_c((*e).conn_handle, &(*e).params.timeout)),
         }
     }
 }
 
 
 #[derive(Debug, Copy, Clone)]
-pub struct Timeout {
+pub struct BleGapTimeout {
     pub conn_handle: ConnHandle,
     pub src: BleGapTimeoutSource
 }
 
-impl Timeout {
+impl BleGapTimeout {
     unsafe fn from_c(conn_handle: ConnHandle, val: *const driver::ble_gap_evt_timeout_t) -> Self {
         Self {
             conn_handle,
