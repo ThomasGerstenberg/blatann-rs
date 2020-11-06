@@ -1,14 +1,14 @@
 use std::sync::atomic::{Ordering, AtomicBool};
 use std::sync::Mutex;
 
-use crate::driver;
+use crate::ffi;
 use crate::ble_event::BleEvent;
-use crate::nrf_error::NrfError;
+use crate::error::NrfError;
 use crate::event_publisher::EventPublisher;
 use crate::common::events::*;
 use crate::gap::events::*;
 use crate::gap::types::*;
-use crate::nrf_driver_manager::event_handler;
+use crate::manager::event_handler;
 
 
 #[allow(dead_code)]
@@ -16,9 +16,9 @@ pub struct NrfDriver {
     pub port: String,
     pub id: usize,
     pub events: NrfDriverEvents,
-    adapter: Mutex<*mut driver::adapter_t>,
-    link_layer: Mutex<*mut driver::data_link_layer_t>,
-    transport_layer: Mutex<*mut driver::transport_layer_t>,
+    adapter: Mutex<*mut ffi::adapter_t>,
+    link_layer: Mutex<*mut ffi::data_link_layer_t>,
+    transport_layer: Mutex<*mut ffi::transport_layer_t>,
     log_driver_comms: bool,
     is_open: AtomicBool,
 }
@@ -31,15 +31,15 @@ pub struct NrfDriverEvents {
 impl NrfDriver {
     pub(crate) fn new(port: String, baud: u32, log_driver_comms: bool) -> Self {
         unsafe {
-            let phy_layer = driver::sd_rpc_physical_layer_create_uart(
+            let phy_layer = ffi::sd_rpc_physical_layer_create_uart(
                 port.as_ptr() as *const _,
                 baud,
-                driver::sd_rpc_flow_control_t_SD_RPC_FLOW_CONTROL_NONE,
-                driver::sd_rpc_parity_t_SD_RPC_PARITY_NONE,
+                ffi::sd_rpc_flow_control_t_SD_RPC_FLOW_CONTROL_NONE,
+                ffi::sd_rpc_parity_t_SD_RPC_PARITY_NONE,
             );
-            let link_layer = driver::sd_rpc_data_link_layer_create_bt_three_wire(phy_layer, 100);
-            let transport_layer = driver::sd_rpc_transport_layer_create(link_layer, 100);
-            let rpc_adapter = driver::sd_rpc_adapter_create(transport_layer);
+            let link_layer = ffi::sd_rpc_data_link_layer_create_bt_three_wire(phy_layer, 100);
+            let transport_layer = ffi::sd_rpc_transport_layer_create(link_layer, 100);
+            let rpc_adapter = ffi::sd_rpc_adapter_create(transport_layer);
             let id = (*rpc_adapter).internal as usize;
             Self {
                 port,
@@ -63,10 +63,10 @@ impl NrfDriver {
 
         let err = unsafe {
             let adapter = self.adapter.lock().unwrap();
-            driver::sd_rpc_open(*adapter, None, Some(event_handler), None)
+            ffi::sd_rpc_open(*adapter, None, Some(event_handler), None)
         };
 
-        if err == driver::NRF_SUCCESS {
+        if err == ffi::NRF_SUCCESS {
             self.is_open.store(true, Ordering::Relaxed);
             Ok(())
         } else {
@@ -81,8 +81,8 @@ impl NrfDriver {
         self.is_open.store(false, Ordering::Relaxed);
         unsafe {
             let adapter = self.adapter.lock().unwrap();
-            driver::sd_rpc_conn_reset(*adapter, driver::sd_rpc_reset_t_SYS_RESET);
-            driver::sd_rpc_close(*adapter);
+            ffi::sd_rpc_conn_reset(*adapter, ffi::sd_rpc_reset_t_SYS_RESET);
+            ffi::sd_rpc_close(*adapter);
         }
     }
 
@@ -91,21 +91,21 @@ impl NrfDriver {
         let _ram_base_ptr: *mut u32 = &mut ram_base;
         let err = unsafe {
             let adapter = self.adapter.lock().unwrap();
-            driver::sd_ble_enable(*adapter, _ram_base_ptr)
+            ffi::sd_ble_enable(*adapter, _ram_base_ptr)
         };
 
         NrfError::make_result(err)
     }
 
     pub fn ble_gap_addr_get(&self) -> Result<BleGapAddress, NrfError> {
-        let mut addr = driver::ble_gap_addr_t {
-            _bitfield_1: driver::ble_gap_addr_t::new_bitfield_1(0, 0),
+        let mut addr = ffi::ble_gap_addr_t {
+            _bitfield_1: ffi::ble_gap_addr_t::new_bitfield_1(0, 0),
             addr: [0; 6],
         };
 
         let err = unsafe {
             let adapter = self.adapter.lock().unwrap();
-            driver::sd_ble_gap_addr_get(*adapter, &mut addr)
+            ffi::sd_ble_gap_addr_get(*adapter, &mut addr)
         };
 
         return NrfError::make_result_typed(err, || BleGapAddress::new_from_c(&addr));
@@ -116,7 +116,7 @@ impl NrfDriver {
 
         let err = unsafe {
             let adapter = self.adapter.lock().unwrap();
-            driver::sd_ble_gap_addr_set(*adapter, &addr)
+            ffi::sd_ble_gap_addr_set(*adapter, &addr)
         };
 
         NrfError::make_result(err)
@@ -127,7 +127,7 @@ impl NrfDriver {
 
         let err = unsafe {
             let adapter = self.adapter.lock().unwrap();
-            driver::sd_ble_gap_adv_start(*adapter, &params, 0)
+            ffi::sd_ble_gap_adv_start(*adapter, &params, 0)
         };
 
         NrfError::make_result(err)
@@ -136,7 +136,7 @@ impl NrfDriver {
     pub fn ble_gap_adv_stop(&self) -> Result<(), NrfError> {
         let err = unsafe {
             let adapter = self.adapter.lock().unwrap();
-            driver::sd_ble_gap_adv_stop(*adapter)
+            ffi::sd_ble_gap_adv_stop(*adapter)
         };
 
         NrfError::make_result(err)
@@ -167,7 +167,7 @@ impl Drop for NrfDriver {
         self.close();
         unsafe {
             let adapter = self.adapter.lock().unwrap();
-            driver::sd_rpc_adapter_delete(*adapter);
+            ffi::sd_rpc_adapter_delete(*adapter);
         }
     }
 }

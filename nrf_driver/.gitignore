@@ -3,4 +3,4 @@
 # pc-ble-driver libs and headers
 external/nrf-ble-driver/*
 # Auto-generated rust bindings for pc-ble-driver headers
-src/driver.rs
+src/ffi.rs

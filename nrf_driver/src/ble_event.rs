@@ -1,6 +1,6 @@
 use crate::common::events::{BleCommonEvent, BleCommonEventId};
 use crate::gap::events::{BleGapEvent, BleGapEventId};
-use crate::driver::ble_evt_t;
+use crate::ffi::ble_evt_t;
 
 
 #[derive(Copy, Clone, Debug)]

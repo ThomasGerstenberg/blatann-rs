@@ -1,8 +1,8 @@
 use std::sync::{Arc, mpsc, Mutex};
 use std::thread;
-use crate::driver;
+use crate::ffi;
 use crate::ble_event::BleEvent;
-use crate::nrf_driver::NrfDriver;
+use crate::driver::NrfDriver;
 use crate::DRIVER_MANAGER;
 
 pub struct NrfDriverThreadCoordinator {
@@ -50,7 +50,7 @@ impl NrfDriverManager {
         });
     }
 
-    pub(crate) fn find_by_adapter(&self, adapter: *mut driver::adapter_t) -> Option<NrfDriverThreadCoordinator> {
+    pub(crate) fn find_by_adapter(&self, adapter: *mut ffi::adapter_t) -> Option<NrfDriverThreadCoordinator> {
         let adapter_id = unsafe { (*adapter).internal as usize };
 
         let entries = self.coordinators.lock().unwrap();
@@ -81,7 +81,7 @@ fn run_event_loop(driver: Arc<NrfDriver>, receiver: mpsc::Receiver<BleEvent>) {
 
 
 #[no_mangle]
-pub(crate) unsafe extern "C" fn event_handler(adapter: *mut driver::adapter_t, ble_event: *mut driver::ble_evt_t) {
+pub(crate) unsafe extern "C" fn event_handler(adapter: *mut ffi::adapter_t, ble_event: *mut ffi::ble_evt_t) {
     let manager = DRIVER_MANAGER.lock().unwrap();
     let coordinator = match manager.find_by_adapter(adapter) {
         None => return,

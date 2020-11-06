@@ -1,7 +1,7 @@
 use std::convert::TryInto;
 use num_traits::FromPrimitive;
 
-use crate::driver;
+use crate::ffi;
 use crate::utils::*;
 use super::enums::*;
 
@@ -16,7 +16,7 @@ pub struct BleGapAddress {
 
 
 impl BleGapAddress {
-    pub fn new_from_c(addr: *const driver::ble_gap_addr_t) -> Self {
+    pub fn new_from_c(addr: *const ffi::ble_gap_addr_t) -> Self {
         unsafe {
             let addr = addr.as_ref().unwrap();
             let mut addr_data = addr.addr;
@@ -49,12 +49,12 @@ impl BleGapAddress {
         return parts.join(":");
     }
 
-    pub fn to_c(&self) -> driver::ble_gap_addr_t {
+    pub fn to_c(&self) -> ffi::ble_gap_addr_t {
        let mut addr = self.address.clone();
         addr.reverse();
 
-        driver::ble_gap_addr_t {
-            _bitfield_1: driver::ble_gap_addr_t::new_bitfield_1(0, self.address_type as u8),
+        ffi::ble_gap_addr_t {
+            _bitfield_1: ffi::ble_gap_addr_t::new_bitfield_1(0, self.address_type as u8),
             addr
         }
     }
@@ -82,15 +82,15 @@ impl BleGapAdvParams {
         Self::new(40f64, 180, BleGapAdvertisingType::ConnectableUndirected)
     }
 
-    pub fn to_c(&self) -> driver::ble_gap_adv_params_t {
-        driver::ble_gap_adv_params_t {
+    pub fn to_c(&self) -> ffi::ble_gap_adv_params_t {
+        ffi::ble_gap_adv_params_t {
             type_: self.advertising_type as u8,
             p_peer_addr: std::ptr::null(),
-            fp: driver::BLE_GAP_ADV_FP_ANY as u8,
+            fp: ffi::BLE_GAP_ADV_FP_ANY as u8,
             interval: self.interval.to_units(UNIT_0_625_MS) as u16,
             timeout: self.timeout_s,
-            channel_mask: driver::ble_gap_adv_ch_mask_t {
-                _bitfield_1: driver::ble_gap_adv_ch_mask_t::new_bitfield_1(0, 0, 0)
+            channel_mask: ffi::ble_gap_adv_ch_mask_t {
+                _bitfield_1: ffi::ble_gap_adv_ch_mask_t::new_bitfield_1(0, 0, 0)
             }
         }
     }

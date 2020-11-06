@@ -18,6 +18,6 @@ fn main() {
         .expect("Failed to generate bindings");
 
     let out_path = PathBuf::from(manifest_dir);
-    bindings.write_to_file(out_path.join("src").join("driver.rs"))
+    bindings.write_to_file(out_path.join("src").join("ffi.rs"))
             .expect("Failed to write bindings");
 }

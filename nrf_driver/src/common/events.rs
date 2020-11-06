@@ -1,13 +1,13 @@
-use crate::driver;
+use crate::ffi;
 use num_traits::FromPrimitive;
-use crate::driver::{ble_evt_user_mem_release_t, ble_common_evt_t};
+use crate::ffi::{ble_evt_user_mem_release_t, ble_common_evt_t};
 
 
 #[repr(u16)]
 #[derive(FromPrimitive, Copy, Clone, Debug)]
 pub enum BleCommonEventId {
-    MemRequest = driver::BLE_COMMON_EVTS_BLE_EVT_USER_MEM_REQUEST as u16,
-    MemRelease = driver::BLE_COMMON_EVTS_BLE_EVT_USER_MEM_RELEASE as u16,
+    MemRequest = ffi::BLE_COMMON_EVTS_BLE_EVT_USER_MEM_REQUEST as u16,
+    MemRelease = ffi::BLE_COMMON_EVTS_BLE_EVT_USER_MEM_RELEASE as u16,
 }
 
 impl BleCommonEventId {
@@ -36,8 +36,8 @@ impl BleCommonEvent {
 #[repr(u8)]
 #[derive(FromPrimitive, Copy, Clone, Debug)]
 pub enum BleMemType {
-    Invalid = driver::BLE_USER_MEM_TYPE_INVALID as u8,
-    GattsQueuedWrites = driver::BLE_USER_MEM_TYPE_GATTS_QUEUED_WRITES as u8,
+    Invalid = ffi::BLE_USER_MEM_TYPE_INVALID as u8,
+    GattsQueuedWrites = ffi::BLE_USER_MEM_TYPE_GATTS_QUEUED_WRITES as u8,
 }
 
 
@@ -48,7 +48,7 @@ pub struct MemRequest {
 
 
 impl MemRequest {
-    unsafe fn from_c(e: *const driver::ble_evt_user_mem_request_t) -> Self {
+    unsafe fn from_c(e: *const ffi::ble_evt_user_mem_request_t) -> Self {
         Self {
             mem_type: FromPrimitive::from_u8((*e).type_).unwrap_or(BleMemType::Invalid)
         }
