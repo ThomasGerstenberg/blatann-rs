@@ -87,7 +87,7 @@ pub(crate) unsafe extern "C" fn event_handler(adapter: *mut ffi::adapter_t, ble_
         None => return,
         Some(x) => x,
     };
-    println!("Got event for {}", coordinator.driver.port);
+
     match BleEvent::from_c(ble_event) {
         None => {
             println!("Unable to convert event, id {}", (*ble_event).header.evt_id);

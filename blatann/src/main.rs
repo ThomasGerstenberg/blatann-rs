@@ -1,6 +1,5 @@
 mod device;
 
-use std::sync::Arc;
 use std::thread::sleep;
 use std::time::Duration;
 
@@ -23,6 +22,9 @@ fn main() {
 
     device_com11.advertiser.stop().unwrap();
     device_com13.advertiser.stop().unwrap();
+
+    drop(device_com11);
+    drop(device_com13);
 
     println!("Done");
 }

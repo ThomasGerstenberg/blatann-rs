@@ -4,9 +4,9 @@ use nrf_driver::DRIVER_MANAGER;
 use std::sync::Arc;
 use nrf_driver::event_publisher::{EventHandler, Publishable};
 use nrf_driver::gap::events::BleGapTimeout;
-use nrf_driver::gap::enums::BleGapAdvertisingType;
 use nrf_driver::utils::Milliseconds;
-use nrf_driver::gap::types::BleGapAdvParams;
+use nrf_driver::gap::enums::*;
+use nrf_driver::gap::types::*;
 use nrf_driver::error::{NrfError, NrfErrorType};
 
 pub type AdvertisingType = BleGapAdvertisingType;
@@ -16,8 +16,14 @@ pub struct Advertiser {
 }
 
 impl Advertiser {
-    pub fn new(driver: Arc<NrfDriver>) -> Self {
-        Self { driver }
+    pub fn new(driver: Arc<NrfDriver>) -> Arc<Self> {
+        let advertiser = Arc::new(Self {
+            driver: driver.clone()
+        });
+
+        driver.events.gap_timeout.subscribe(advertiser.clone());
+
+        return advertiser;
     }
 
     pub fn start(&self, interval: Milliseconds, timeout_s: u16, adv_type: AdvertisingType) -> Result<(), NrfError> {
@@ -40,7 +46,9 @@ impl Advertiser {
 
 impl EventHandler<NrfDriver, BleGapTimeout> for Advertiser {
     fn handle(&self, _sender: &NrfDriver, event: &BleGapTimeout) {
-        println!("Got timeout event");
+        if let BleGapTimeoutSource::Advertising = event.src {
+            println!("Got advertising timeout event");
+        }
     }
 }
 
@@ -57,8 +65,7 @@ impl BleDevice {
             let mut manager = DRIVER_MANAGER.lock().unwrap();
             manager.create(port.clone(), baud, false)
         };
-        let advertiser = Arc::new(Advertiser::new(driver.clone()));
-        driver.events.gap_timeout.subscribe(advertiser.clone());
+        let advertiser = Advertiser::new(driver.clone());
 
         Self {
             port,
