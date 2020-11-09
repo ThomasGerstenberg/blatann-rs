@@ -1,32 +1,32 @@
 use std::sync::{Mutex, Weak, Arc};
 
 pub trait EventHandler<TSender, TEvent> {
-    fn handle(&self, sender: &TSender, event: &TEvent);
+    fn handle(self: Arc<Self>, sender: Arc<TSender>, event: TEvent);
 }
 
-pub trait Publishable<TSender, TEvent> {
+pub trait Subscribable<TSender, TEvent: Clone> {
     fn subscribe(&self, handler: Arc<dyn EventHandler<TSender, TEvent>>);
 }
 
-pub struct EventPublisher<TSender, TEvent>
+pub struct EventPublisher<TSender, TEvent: Clone>
 {
     subscribers: Mutex<Vec<Weak<dyn EventHandler<TSender, TEvent>>>>,
 }
 
-impl<TSender, TEvent> EventPublisher<TSender, TEvent> {
+impl<TSender, TEvent: Clone> EventPublisher<TSender, TEvent> {
     pub fn new() -> Self {
         Self {
             subscribers: Mutex::new(vec![]),
         }
     }
 
-    pub fn dispatch(&self, sender: &TSender, event: &TEvent) {
+    pub fn dispatch(&self, sender: Arc<TSender>, event: TEvent) {
         let mut cleanup = false;
 
         let mut subscribers = self.subscribers.lock().unwrap();
         for sub in subscribers.iter() {
             if let Some(s) = sub.upgrade() {
-                s.handle(sender, event)
+                s.handle(sender.clone(), event.clone())
             } else {
                 cleanup = true;
             }
@@ -43,7 +43,7 @@ impl<TSender, TEvent> EventPublisher<TSender, TEvent> {
     }
 }
 
-impl<TSender, TEvent> Publishable<TSender, TEvent> for EventPublisher<TSender, TEvent> {
+impl<TSender, TEvent: Clone> Subscribable<TSender, TEvent> for EventPublisher<TSender, TEvent> {
     fn subscribe(&self, handler: Arc<dyn EventHandler<TSender, TEvent>>) {
         let mut subscribers = self.subscribers.lock().unwrap();
         subscribers.push(Arc::downgrade(&handler));

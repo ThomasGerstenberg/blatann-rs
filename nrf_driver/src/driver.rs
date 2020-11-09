@@ -1,5 +1,5 @@
 use std::sync::atomic::{Ordering, AtomicBool};
-use std::sync::Mutex;
+use std::sync::{Mutex, Arc};
 
 use crate::ffi;
 use crate::ble_event::BleEvent;
@@ -142,7 +142,7 @@ impl NrfDriver {
         NrfError::make_result(err)
     }
 
-    pub(crate) fn process_event(&self, ble_event: &BleEvent) {
+    pub(crate) fn process_event(self: Arc<Self>, ble_event: &BleEvent) {
         match ble_event {
             BleEvent::Common(sub_event) => {
                 match sub_event {
@@ -153,7 +153,7 @@ impl NrfDriver {
             BleEvent::Gap(sub_event) => {
                 match sub_event {
                     BleGapEvent::Timeout(e) => {
-                        self.events.gap_timeout.dispatch(&self, &e)
+                        self.events.gap_timeout.dispatch(self.clone(), e.clone())
                     }
                 }
             }

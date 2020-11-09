@@ -75,7 +75,7 @@ fn run_event_loop(driver: Arc<NrfDriver>, receiver: mpsc::Receiver<BleEvent>) {
             Err(_) => return
         };
 
-        driver.process_event(&ble_event);
+        driver.clone().process_event(&ble_event);
     }
 }
 
