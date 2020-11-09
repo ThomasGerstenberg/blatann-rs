@@ -1,4 +1,7 @@
 use std::sync::Arc;
+
+use log::{debug};
+
 use nrf_driver::driver::NrfDriver;
 use nrf_driver::event_publisher::{EventHandler, Subscribable, EventPublisher};
 use nrf_driver::gap::events::BleGapTimeout;
@@ -53,6 +56,7 @@ impl Advertiser {
 impl EventHandler<NrfDriver, BleGapTimeout> for Advertiser {
     fn handle(self: Arc<Self>, _sender: Arc<NrfDriver>, event: BleGapTimeout) {
         if let BleGapTimeoutSource::Advertising = event.src {
+            debug!("Got advertising event");
             self.on_timeout.dispatch(self.clone(), AdvertisingTimeoutEvent {});
         }
     }

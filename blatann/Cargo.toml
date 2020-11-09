@@ -5,6 +5,9 @@ authors = ["thomas <tgerst6@gmail.com>"]
 edition = "2018"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[dev-dependencies]
+env_logger = "0.8.1"
 
 [dependencies]
+log = "0.4.11"
 nrf_driver = {path = "../nrf_driver"}
