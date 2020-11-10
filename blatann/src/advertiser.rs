@@ -1,21 +1,21 @@
 use std::sync::Arc;
 
 use nrf_driver::driver::NrfDriver;
-use nrf_driver::event_publisher::{EventHandler, Subscribable, EventPublisher};
-use nrf_driver::gap::events::BleGapTimeout;
-use nrf_driver::utils::Milliseconds;
-use nrf_driver::gap::enums::*;
-use nrf_driver::gap::types::*;
 use nrf_driver::error::{NrfError, NrfErrorType};
-use crate::waitable::event_waitable::{EventWaitableResult, EventWaitable};
-use crate::events::AdvertisingTimeoutEvent;
+use nrf_driver::event_publisher::{EventHandler, EventPublisher, Subscribable};
+use nrf_driver::gap::enums::*;
+use nrf_driver::gap::events::BleGapTimeout;
+use nrf_driver::gap::types::*;
+use nrf_driver::utils::Milliseconds;
 
+use crate::events::AdvertisingTimeoutEvent;
+use crate::waitable::event_waitable::{EventWaitable, EventWaitableResult};
 
 pub type AdvertisingType = BleGapAdvertisingType;
 
 pub struct Advertiser {
     driver: Arc<NrfDriver>,
-    pub on_timeout: EventPublisher<Self, AdvertisingTimeoutEvent>
+    pub on_timeout: EventPublisher<Self, AdvertisingTimeoutEvent>,
 }
 
 

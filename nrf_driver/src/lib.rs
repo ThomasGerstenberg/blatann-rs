@@ -1,11 +1,15 @@
 #![allow(dead_code)]
 
 #[macro_use]
-extern crate num_derive;
-#[macro_use]
 extern crate lazy_static;
 #[macro_use]
 extern crate log;
+#[macro_use]
+extern crate num_derive;
+
+use std::sync::Mutex;
+
+use crate::manager::NrfDriverManager;
 
 pub mod error;
 pub mod common;
@@ -21,10 +25,6 @@ pub mod utils;
 #[allow(non_snake_case)]
 #[allow(dead_code)]
 mod ffi;  // Auto-genned C bindings
-
-use std::sync::{Mutex};
-use crate::manager::NrfDriverManager;
-
 
 lazy_static! {
     pub static ref DRIVER_MANAGER: Mutex<NrfDriverManager> = Mutex::new(NrfDriverManager::new());

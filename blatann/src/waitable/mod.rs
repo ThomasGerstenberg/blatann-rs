@@ -1,7 +1,8 @@
-use std::time::Duration;
-use event_waitable::EventArgs;
 use std::sync::Arc;
-use std::sync::mpsc::{RecvTimeoutError, RecvError};
+use std::sync::mpsc::{RecvError, RecvTimeoutError};
+use std::time::Duration;
+
+use event_waitable::EventArgs;
 
 pub mod event_waitable;
 

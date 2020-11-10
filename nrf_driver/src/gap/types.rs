@@ -1,8 +1,10 @@
 use std::convert::TryInto;
+
 use num_traits::FromPrimitive;
 
 use crate::ffi;
 use crate::utils::*;
+
 use super::enums::*;
 
 const ADDR_LEN: usize = 6;
@@ -11,7 +13,7 @@ const ADDR_LEN: usize = 6;
 #[derive(Debug, Copy, Clone)]
 pub struct BleGapAddress {
     pub address_type: BleGapAddressType,
-    pub address: [u8; ADDR_LEN]
+    pub address: [u8; ADDR_LEN],
 }
 
 
@@ -24,7 +26,7 @@ impl BleGapAddress {
             let addr_type = FromPrimitive::from_u8(addr.addr_type()).unwrap();
             Self {
                 address_type: addr_type,
-                address: addr_data
+                address: addr_data,
             }
         }
     }
@@ -40,22 +42,22 @@ impl BleGapAddress {
 
         Self {
             address_type: addr_type,
-            address: addr
+            address: addr,
         }
     }
 
     pub fn to_string(&self) -> String {
-        let parts= self.address.iter().map(|x| format!{"{:02X}", x}).collect::<Vec<String>>();
+        let parts = self.address.iter().map(|x| format! {"{:02X}", x}).collect::<Vec<String>>();
         return parts.join(":");
     }
 
     pub fn to_c(&self) -> ffi::ble_gap_addr_t {
-       let mut addr = self.address.clone();
+        let mut addr = self.address.clone();
         addr.reverse();
 
         ffi::ble_gap_addr_t {
             _bitfield_1: ffi::ble_gap_addr_t::new_bitfield_1(0, self.address_type as u8),
-            addr
+            addr,
         }
     }
 }
@@ -65,7 +67,7 @@ impl BleGapAddress {
 pub struct BleGapAdvParams {
     pub interval: Milliseconds,
     pub timeout_s: u16,
-    pub advertising_type: BleGapAdvertisingType
+    pub advertising_type: BleGapAdvertisingType,
 }
 
 
@@ -74,7 +76,7 @@ impl BleGapAdvParams {
         Self {
             interval,
             timeout_s,
-            advertising_type
+            advertising_type,
         }
     }
 
@@ -91,7 +93,7 @@ impl BleGapAdvParams {
             timeout: self.timeout_s,
             channel_mask: ffi::ble_gap_adv_ch_mask_t {
                 _bitfield_1: ffi::ble_gap_adv_ch_mask_t::new_bitfield_1(0, 0, 0)
-            }
+            },
         }
     }
 }

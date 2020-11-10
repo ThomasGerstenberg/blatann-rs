@@ -1,6 +1,8 @@
-use crate::ffi;
-use num_traits::FromPrimitive;
 use std::fmt;
+
+use num_traits::FromPrimitive;
+
+use crate::ffi;
 
 #[repr(u32)]
 #[derive(FromPrimitive, Debug, Copy, Clone)]
@@ -79,15 +81,14 @@ impl NrfError {
     pub fn new(err: u32) -> Self {
         Self {
             error_type: NrfErrorType::from(err),
-            error_code: err
+            error_code: err,
         }
     }
 
     pub fn make_result(err: u32) -> Result<(), Self> {
         if err == ffi::NRF_SUCCESS {
             Ok(())
-        }
-        else {
+        } else {
             Err(NrfError::new(err))
         }
     }
@@ -96,14 +97,13 @@ impl NrfError {
         where F: FnOnce() -> T {
         if err == ffi::NRF_SUCCESS {
             Ok(f())
-        }
-        else {
+        } else {
             Err(NrfError::new(err))
         }
     }
 
     pub fn to_string(&self) -> String {
-        return format!("{:?}({})", self.error_type, self.error_code)
+        return format!("{:?}({})", self.error_type, self.error_code);
     }
 }
 

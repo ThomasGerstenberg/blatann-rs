@@ -1,15 +1,14 @@
-use std::sync::atomic::{Ordering, AtomicBool};
-use std::sync::{Mutex, Arc};
+use std::sync::{Arc, Mutex};
+use std::sync::atomic::{AtomicBool, Ordering};
 
-use crate::ffi;
 use crate::ble_event::BleEvent;
+use crate::common::events::*;
 use crate::error::NrfError;
 use crate::event_publisher::EventPublisher;
-use crate::common::events::*;
+use crate::ffi;
 use crate::gap::events::*;
 use crate::gap::types::*;
 use crate::manager::event_handler;
-
 
 #[allow(dead_code)]
 pub struct NrfDriver {
@@ -51,7 +50,7 @@ impl NrfDriver {
                 is_open: AtomicBool::new(false),
                 events: NrfDriverEvents {
                     gap_timeout: EventPublisher::new()
-                }
+                },
             }
         }
     }
@@ -174,4 +173,5 @@ impl Drop for NrfDriver {
 }
 
 unsafe impl Send for NrfDriver {}
+
 unsafe impl Sync for NrfDriver {}

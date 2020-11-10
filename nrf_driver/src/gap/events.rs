@@ -1,8 +1,10 @@
-use crate::ffi;
-use crate::common::types::ConnHandle;
-use super::types::*;
-use super::enums::*;
 use num_traits::FromPrimitive;
+
+use crate::common::types::ConnHandle;
+use crate::ffi;
+
+use super::enums::*;
+use super::types::*;
 
 #[repr(u16)]
 #[derive(FromPrimitive, Copy, Clone, Debug)]
@@ -23,7 +25,7 @@ pub enum BleGapEvent {
 
 impl BleGapEvent {
     pub unsafe fn from_c(id: BleGapEventId, e: *const ffi::ble_gap_evt_t) -> Self {
-         match id {
+        match id {
             BleGapEventId::Timeout => BleGapEvent::Timeout(BleGapTimeout::from_c((*e).conn_handle, &(*e).params.timeout)),
         }
     }
@@ -33,14 +35,14 @@ impl BleGapEvent {
 #[derive(Debug, Copy, Clone)]
 pub struct BleGapTimeout {
     pub conn_handle: ConnHandle,
-    pub src: BleGapTimeoutSource
+    pub src: BleGapTimeoutSource,
 }
 
 impl BleGapTimeout {
     unsafe fn from_c(conn_handle: ConnHandle, val: *const ffi::ble_gap_evt_timeout_t) -> Self {
         Self {
             conn_handle,
-            src: FromPrimitive::from_u8((*val).src).unwrap()
+            src: FromPrimitive::from_u8((*val).src).unwrap(),
         }
     }
 }

@@ -1,4 +1,4 @@
-use std::sync::{Mutex, Weak, Arc};
+use std::sync::{Arc, Mutex, Weak};
 
 pub trait EventHandler<TSender, TEvent> {
     fn handle(self: Arc<Self>, sender: Arc<TSender>, event: TEvent);

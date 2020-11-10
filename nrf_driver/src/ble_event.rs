@@ -1,12 +1,11 @@
 use crate::common::events::{BleCommonEvent, BleCommonEventId};
-use crate::gap::events::{BleGapEvent, BleGapEventId};
 use crate::ffi::ble_evt_t;
-
+use crate::gap::events::{BleGapEvent, BleGapEventId};
 
 #[derive(Copy, Clone, Debug)]
 pub enum BleEvent {
     Common(BleCommonEvent),
-    Gap(BleGapEvent)
+    Gap(BleGapEvent),
 }
 
 
@@ -16,11 +15,9 @@ impl BleEvent {
 
         let event = if let Some(id) = BleCommonEventId::try_from(id) {
             Some(Self::Common(BleCommonEvent::from_c(id, &(*e).evt.common_evt)))
-        }
-        else if let Some(id) = BleGapEventId::try_from(id) {
+        } else if let Some(id) = BleGapEventId::try_from(id) {
             Some(Self::Gap(BleGapEvent::from_c(id, &(*e).evt.gap_evt)))
-        }
-        else {
+        } else {
             None
         };
 

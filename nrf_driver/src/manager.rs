@@ -1,9 +1,10 @@
 use std::sync::{Arc, mpsc, Mutex};
 use std::thread;
-use crate::ffi;
+
 use crate::ble_event::BleEvent;
 use crate::driver::NrfDriver;
 use crate::DRIVER_MANAGER;
+use crate::ffi;
 
 pub struct NrfDriverThreadCoordinator {
     driver: Arc<NrfDriver>,
@@ -31,7 +32,7 @@ impl NrfDriverManager {
         let mut coordinators = self.coordinators.lock().unwrap();
         coordinators.push(NrfDriverThreadCoordinator {
             driver: Arc::clone(&driver),
-            sender
+            sender,
         });
 
         // Star the event thread
@@ -59,11 +60,11 @@ impl NrfDriverManager {
             if entry.driver.id == adapter_id {
                 return Some(NrfDriverThreadCoordinator {
                     driver: Arc::clone(&entry.driver),
-                    sender: entry.sender.clone()
+                    sender: entry.sender.clone(),
                 });
             }
         }
-        return None
+        return None;
     }
 }
 

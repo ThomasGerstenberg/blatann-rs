@@ -1,14 +1,14 @@
-use std::time::Duration;
 use std::sync::Arc;
+use std::time::Duration;
 
 use env_logger;
-
-use nrf_driver::event_publisher::{EventHandler, Subscribable};
-use blatann::waitable::Waitable;
-use blatann::advertiser::{AdvertisingType, Advertiser};
-use blatann::events::AdvertisingTimeoutEvent;
-use blatann::device::BleDevice;
 use env_logger::Env;
+
+use blatann::advertiser::{Advertiser, AdvertisingType};
+use blatann::device::BleDevice;
+use blatann::events::AdvertisingTimeoutEvent;
+use blatann::waitable::Waitable;
+use nrf_driver::event_publisher::{EventHandler, Subscribable};
 
 fn configure_log() {
     env_logger::Builder::from_env(Env::default().default_filter_or("debug")).init();
