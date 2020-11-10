@@ -90,7 +90,7 @@ pub(crate) unsafe extern "C" fn event_handler(adapter: *mut ffi::adapter_t, ble_
 
     match BleEvent::from_c(ble_event) {
         None => {
-            println!("Unable to convert event, id {}", (*ble_event).header.evt_id);
+            warn!("Unable to decode event, id {}", (*ble_event).header.evt_id);
         }
         Some(event) => {
             coordinator.sender.send(event).unwrap();

@@ -143,6 +143,7 @@ impl NrfDriver {
     }
 
     pub(crate) fn process_event(self: Arc<Self>, ble_event: &BleEvent) {
+        debug!("[{}] Event: {:?}", self.port, ble_event);
         match ble_event {
             BleEvent::Common(sub_event) => {
                 match sub_event {
