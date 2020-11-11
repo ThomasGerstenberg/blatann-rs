@@ -32,3 +32,11 @@ impl BleDevice {
         self.driver.open().and_then(|_| self.driver.ble_enable())
     }
 }
+
+impl Drop for BleDevice {
+    fn drop(&mut self) {
+        // Remove the driver then close it
+        DRIVER_MANAGER.lock().unwrap().remove(&self.driver.port);
+        self.driver.close();
+    }
+}

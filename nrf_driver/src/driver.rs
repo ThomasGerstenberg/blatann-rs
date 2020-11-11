@@ -1,10 +1,11 @@
 use std::sync::{Arc, Mutex};
 use std::sync::atomic::{AtomicBool, Ordering};
 
+use blatann_event::Publisher;
+
 use crate::ble_event::BleEvent;
 use crate::common::events::*;
 use crate::error::NrfError;
-use crate::event_publisher::EventPublisher;
 use crate::ffi;
 use crate::gap::events::*;
 use crate::gap::types::*;
@@ -24,7 +25,7 @@ pub struct NrfDriver {
 
 #[allow(dead_code)]
 pub struct NrfDriverEvents {
-    pub gap_timeout: EventPublisher<NrfDriver, BleGapTimeout>
+    pub gap_timeout: Publisher<NrfDriver, BleGapTimeout>
 }
 
 impl NrfDriver {
@@ -49,7 +50,7 @@ impl NrfDriver {
                 log_driver_comms,
                 is_open: AtomicBool::new(false),
                 events: NrfDriverEvents {
-                    gap_timeout: EventPublisher::new()
+                    gap_timeout: Publisher::new("Gap Timeout")
                 },
             }
         }
@@ -60,6 +61,7 @@ impl NrfDriver {
             return Ok(());
         }
 
+        info!("Opening port '{}'", self.port);
         let err = unsafe {
             let adapter = self.adapter.lock().unwrap();
             ffi::sd_rpc_open(*adapter, None, Some(event_handler), None)
@@ -77,6 +79,7 @@ impl NrfDriver {
         if !self.is_open.load(Ordering::Relaxed) {
             return;
         }
+        info!("Closing port '{}'", self.port);
         self.is_open.store(false, Ordering::Relaxed);
         unsafe {
             let adapter = self.adapter.lock().unwrap();
@@ -165,6 +168,7 @@ impl NrfDriver {
 impl Drop for NrfDriver {
     fn drop(&mut self) {
         self.close();
+        trace!("Deleting adapter for port '{}'", &self.port);
         unsafe {
             let adapter = self.adapter.lock().unwrap();
             ffi::sd_rpc_adapter_delete(*adapter);

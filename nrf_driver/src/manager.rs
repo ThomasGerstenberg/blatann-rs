@@ -1,4 +1,4 @@
-use std::sync::{Arc, mpsc, Mutex};
+use std::sync::{Arc, mpsc, Mutex, Weak};
 use std::thread;
 
 use crate::ble_event::BleEvent;
@@ -7,7 +7,7 @@ use crate::DRIVER_MANAGER;
 use crate::ffi;
 
 pub struct NrfDriverThreadCoordinator {
-    driver: Arc<NrfDriver>,
+    driver: Weak<NrfDriver>,
     sender: mpsc::Sender<BleEvent>,
 }
 
@@ -31,7 +31,7 @@ impl NrfDriverManager {
         // Add the coordinator to the list
         let mut coordinators = self.coordinators.lock().unwrap();
         coordinators.push(NrfDriverThreadCoordinator {
-            driver: Arc::clone(&driver),
+            driver: Arc::downgrade(&driver),
             sender,
         });
 
@@ -44,25 +44,42 @@ impl NrfDriverManager {
         return Arc::clone(&driver);
     }
 
-    pub fn remove(&mut self, driver: Arc<NrfDriver>) {
+    pub fn remove(&mut self, port: &str) {
         let mut coordinators = self.coordinators.lock().unwrap();
         coordinators.retain(|x| {
-            x.driver.port != driver.port
+            match x.driver.upgrade() {
+                Some(d) => d.port != port,
+                None => false,
+            }
         });
     }
 
     pub(crate) fn find_by_adapter(&self, adapter: *mut ffi::adapter_t) -> Option<NrfDriverThreadCoordinator> {
         let adapter_id = unsafe { (*adapter).internal as usize };
 
-        let entries = self.coordinators.lock().unwrap();
+        let mut entries = self.coordinators.lock().unwrap();
+        let mut cleanup = false;
 
         for entry in &*entries {
-            if entry.driver.id == adapter_id {
-                return Some(NrfDriverThreadCoordinator {
-                    driver: Arc::clone(&entry.driver),
-                    sender: entry.sender.clone(),
-                });
+            if let Some(driver) = entry.driver.upgrade() {
+                if driver.id == adapter_id {
+                    return Some(NrfDriverThreadCoordinator {
+                        driver: Arc::downgrade(&driver),
+                        sender: entry.sender.clone(),
+                    });
+                }
+            } else {
+                cleanup = true;
             }
+        }
+
+        if cleanup {
+            entries.retain(|ref c| {
+                match c.driver.upgrade() {
+                    Some(_) => true,
+                    None => false,
+                }
+            })
         }
         return None;
     }

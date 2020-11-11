@@ -1,18 +1,14 @@
+use std::cell::RefCell;
 use std::sync::{Arc, mpsc};
 use std::sync::mpsc::{RecvError, RecvTimeoutError};
 use std::time::Duration;
 
-use nrf_driver::error::NrfError;
-use nrf_driver::event_publisher::{EventHandler, Subscribable};
+use uuid::Uuid;
 
-use crate::waitable::Waitable;
-
-#[derive(Debug, Copy, Clone)]
-pub struct EventArgs<S, E: Clone>(S, E);
-
-pub type EventWaitableResult<S, E> = Result<Arc<EventWaitable<S, E>>, NrfError>;
+use crate::{EventArgs, Subscribable, Subscriber, SubscriberAction, Waitable};
 
 pub struct EventWaitable<TSender: 'static, TEvent: Clone + 'static> {
+    subscription_id: RefCell<Option<Uuid>>,
     sender: mpsc::Sender<EventArgs<Arc<TSender>, TEvent>>,
     receiver: mpsc::Receiver<EventArgs<Arc<TSender>, TEvent>>,
 }
@@ -23,8 +19,11 @@ impl<TSender: 'static, TEvent: Clone + 'static> EventWaitable<TSender, TEvent> {
         let waitable = Arc::new(Self {
             sender,
             receiver,
+            subscription_id: RefCell::new(None),
         });
-        event.subscribe(waitable.clone());
+
+        let sub_id = event.subscribe(waitable.clone());
+        waitable.subscription_id.replace(Some(sub_id));
 
         return waitable;
     }
@@ -40,10 +39,12 @@ impl<TSender: 'static, TEvent: Clone + 'static> Waitable<TSender, TEvent> for Ev
     }
 }
 
-impl<TSender: 'static, TEvent: Clone + 'static> EventHandler<TSender, TEvent> for EventWaitable<TSender, TEvent> {
-    fn handle(self: Arc<Self>, sender: Arc<TSender>, event: TEvent) {
-        self.sender.send(EventArgs(sender.clone(), event.clone())).unwrap_or_else(|_| {
-            println!("Failed to send waitable");
+impl<TSender: 'static, TEvent: Clone + 'static> Subscriber<TSender, TEvent> for EventWaitable<TSender, TEvent> {
+    fn handle(self: Arc<Self>, sender: Arc<TSender>, event: TEvent) -> Option<SubscriberAction> {
+        self.sender.send(EventArgs(sender.clone(), event.clone())).unwrap_or_else(|e| {
+            error!("Failed to send waitable: {:?}", e);
         });
+        // Handled the event, unsubscribe
+        return Some(SubscriberAction::Unsubscribe);
     }
 }

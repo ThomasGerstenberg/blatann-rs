@@ -1,15 +1,11 @@
 [package]
-name = "blatann"
+name = "blatann_event"
 version = "0.1.0"
 authors = ["thomas <tgerst6@gmail.com>"]
 edition = "2018"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-[dev-dependencies]
-env_logger = "0.8.1"
 
 [dependencies]
 log = "0.4.11"
 uuid = { version = "0.8.1", features = ["v4"] }
-nrf_driver = {path = "../nrf_driver"}
-blatann_event = {path = "../blatann_event" }

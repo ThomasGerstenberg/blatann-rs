@@ -14,3 +14,5 @@ num-traits = "0.2"
 num-derive = "0.3"
 lazy_static = "1.4.0"
 log = "0.4.11"
+uuid = { version = "0.8.1", features = ["v4"] }
+blatann_event = {path = "../blatann_event" }

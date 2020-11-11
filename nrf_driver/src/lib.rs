@@ -15,7 +15,6 @@ pub mod error;
 pub mod common;
 pub mod gap;
 pub mod ble_event;
-pub mod event_publisher;
 pub mod driver;
 pub mod manager;
 pub mod utils;
