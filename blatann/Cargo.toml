@@ -10,6 +10,7 @@ env_logger = "0.8.1"
 
 [dependencies]
 log = "0.4.11"
+bitflags = "1.2.1"
 uuid = { version = "0.8.1", features = ["v4"] }
 nrf_driver = {path = "../nrf_driver"}
 blatann_event = {path = "../blatann_event" }

@@ -5,11 +5,12 @@ use blatann_event::Publisher;
 
 use crate::ble_event::BleEvent;
 use crate::common::events::*;
-use crate::error::NrfError;
+use crate::error::{NrfError, NrfResult};
 use crate::ffi;
 use crate::gap::events::*;
 use crate::gap::types::*;
 use crate::manager::event_handler;
+use std::ptr::null;
 
 #[allow(dead_code)]
 pub struct NrfDriver {
@@ -27,6 +28,7 @@ pub struct NrfDriver {
 pub struct NrfDriverEvents {
     pub gap_timeout: Publisher<NrfDriver, BleGapTimeout>
 }
+
 
 impl NrfDriver {
     pub(crate) fn new(port: String, baud: u32, log_driver_comms: bool) -> Self {
@@ -56,7 +58,7 @@ impl NrfDriver {
         }
     }
 
-    pub fn open(&self) -> Result<(), NrfError> {
+    pub fn open(&self) -> NrfResult<()> {
         if self.is_open.load(Ordering::Relaxed) {
             return Ok(());
         }
@@ -88,7 +90,7 @@ impl NrfDriver {
         }
     }
 
-    pub fn ble_enable(&self) -> Result<(), NrfError> {
+    pub fn ble_enable(&self) -> NrfResult<()> {
         let mut ram_base = 0u32;
         let _ram_base_ptr: *mut u32 = &mut ram_base;
         let err = unsafe {
@@ -99,7 +101,7 @@ impl NrfDriver {
         NrfError::make_result(err)
     }
 
-    pub fn ble_gap_addr_get(&self) -> Result<BleGapAddress, NrfError> {
+    pub fn ble_gap_addr_get(&self) -> NrfResult<BleGapAddress> {
         let mut addr = ffi::ble_gap_addr_t {
             _bitfield_1: ffi::ble_gap_addr_t::new_bitfield_1(0, 0),
             addr: [0; 6],
@@ -113,7 +115,7 @@ impl NrfDriver {
         return NrfError::make_result_typed(err, || BleGapAddress::new_from_c(&addr));
     }
 
-    pub fn ble_gap_addr_set(&self, address: &BleGapAddress) -> Result<(), NrfError> {
+    pub fn ble_gap_addr_set(&self, address: &BleGapAddress) -> NrfResult<()> {
         let addr = address.to_c();
 
         let err = unsafe {
@@ -124,7 +126,28 @@ impl NrfDriver {
         NrfError::make_result(err)
     }
 
-    pub fn ble_gap_adv_start(&self, params: &BleGapAdvParams) -> Result<(), NrfError> {
+    pub fn ble_gap_adv_data_set(&self, adv_data: &Option<Vec<u8>>, scan_response_data: &Option<Vec<u8>>) -> NrfResult<()> {
+        let err = unsafe {
+            let (adv_ptr, adv_size) = match adv_data {
+                None => (null(), 0),
+                Some(d) => (d.as_ptr(), d.len())
+            };
+            let (scan_ptr, scan_size) = match scan_response_data {
+                None => (null(), 0),
+                Some(d) => (d.as_ptr(), 0),
+            };
+
+            let adapter = self.adapter.lock().unwrap();
+            ffi::sd_ble_gap_adv_data_set(*adapter,
+                                         adv_ptr, adv_size as u8,
+                                         scan_ptr, scan_size as u8
+            )
+        };
+
+        NrfError::make_result(err)
+    }
+
+    pub fn ble_gap_adv_start(&self, params: &BleGapAdvParams) -> NrfResult<()> {
         let params = params.to_c();
 
         let err = unsafe {
@@ -135,7 +158,7 @@ impl NrfDriver {
         NrfError::make_result(err)
     }
 
-    pub fn ble_gap_adv_stop(&self) -> Result<(), NrfError> {
+    pub fn ble_gap_adv_stop(&self) -> NrfResult<()> {
         let err = unsafe {
             let adapter = self.adapter.lock().unwrap();
             ffi::sd_ble_gap_adv_stop(*adapter)

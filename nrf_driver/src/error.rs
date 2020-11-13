@@ -4,6 +4,8 @@ use num_traits::FromPrimitive;
 
 use crate::ffi;
 
+pub type NrfResult<T> = Result<T, NrfError>;
+
 #[repr(u32)]
 #[derive(FromPrimitive, Debug, Copy, Clone)]
 pub enum NrfErrorType {
@@ -68,6 +70,13 @@ impl NrfErrorType {
             None => NrfErrorType::Unknown
         }
     }
+
+    pub fn to_error(self) -> NrfError {
+        NrfError {
+            error_type: self,
+            error_code: self as u32
+        }
+    }
 }
 
 
@@ -85,7 +94,7 @@ impl NrfError {
         }
     }
 
-    pub fn make_result(err: u32) -> Result<(), Self> {
+    pub fn make_result(err: u32) -> NrfResult<()> {
         if err == ffi::NRF_SUCCESS {
             Ok(())
         } else {
@@ -93,7 +102,7 @@ impl NrfError {
         }
     }
 
-    pub fn make_result_typed<T: Sized, F>(err: u32, f: F) -> Result<T, NrfError>
+    pub fn make_result_typed<T: Sized, F>(err: u32, f: F) -> NrfResult<T>
         where F: FnOnce() -> T {
         if err == ffi::NRF_SUCCESS {
             Ok(f())
@@ -104,6 +113,23 @@ impl NrfError {
 
     pub fn to_string(&self) -> String {
         return format!("{:?}({})", self.error_type, self.error_code);
+    }
+
+    pub fn to_result(self) -> NrfResult<()> {
+        if let NrfErrorType::Success = self.error_type {
+            Ok(())
+        } else {
+            Err(self)
+        }
+    }
+
+    pub fn to_result_typed<T: Sized, F>(self, f: F) -> NrfResult<T>
+        where F: FnOnce() -> T {
+        if let NrfErrorType::Success = self.error_type {
+            Ok(f())
+        } else {
+            Err(self)
+        }
     }
 }
 

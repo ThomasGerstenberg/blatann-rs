@@ -29,3 +29,41 @@ pub enum BleGapTimeoutSource {
     Conn = ffi::BLE_GAP_TIMEOUT_SRC_CONN as u8,
     AuthPayload = ffi::BLE_GAP_TIMEOUT_SRC_AUTH_PAYLOAD as u8,
 }
+
+
+#[repr(u8)]
+#[derive(FromPrimitive, Copy, Clone, Debug)]
+pub enum BleAdvDataType {
+    Flags = ffi::BLE_GAP_AD_TYPE_FLAGS as u8,
+    Service16bitUuidMoreAvailable = ffi::BLE_GAP_AD_TYPE_16BIT_SERVICE_UUID_MORE_AVAILABLE as u8,
+    Service16bitUuidComplete = ffi::BLE_GAP_AD_TYPE_16BIT_SERVICE_UUID_COMPLETE as u8,
+    Service32bitUuidMoreAvailable = ffi::BLE_GAP_AD_TYPE_32BIT_SERVICE_UUID_MORE_AVAILABLE as u8,
+    Service32bitUuidComplete = ffi::BLE_GAP_AD_TYPE_32BIT_SERVICE_UUID_COMPLETE as u8,
+    Service128bitUuidMoreAvailable = ffi::BLE_GAP_AD_TYPE_128BIT_SERVICE_UUID_MORE_AVAILABLE as u8,
+    Service128bitUuidComplete = ffi::BLE_GAP_AD_TYPE_128BIT_SERVICE_UUID_COMPLETE as u8,
+    ShortLocalName = ffi::BLE_GAP_AD_TYPE_SHORT_LOCAL_NAME as u8,
+    CompleteLocalName = ffi::BLE_GAP_AD_TYPE_COMPLETE_LOCAL_NAME as u8,
+    TxPowerLevel = ffi::BLE_GAP_AD_TYPE_TX_POWER_LEVEL as u8,
+    ClassOfDevice = ffi::BLE_GAP_AD_TYPE_CLASS_OF_DEVICE as u8,
+    SimplePairingHashC = ffi::BLE_GAP_AD_TYPE_SIMPLE_PAIRING_HASH_C as u8,
+    SimplePairingRandomizerR = ffi::BLE_GAP_AD_TYPE_SIMPLE_PAIRING_RANDOMIZER_R as u8,
+    SecurityManagerTkValue = ffi::BLE_GAP_AD_TYPE_SECURITY_MANAGER_TK_VALUE as u8,
+    SecurityManagerOobFlags = ffi::BLE_GAP_AD_TYPE_SECURITY_MANAGER_OOB_FLAGS as u8,
+    SlaveConnectionIntervalRange = ffi::BLE_GAP_AD_TYPE_SLAVE_CONNECTION_INTERVAL_RANGE as u8,
+    SolicitedSeviceUuids16bit = ffi::BLE_GAP_AD_TYPE_SOLICITED_SERVICE_UUIDS_16BIT as u8,
+    SolicitedSeviceUuids128bit = ffi::BLE_GAP_AD_TYPE_SOLICITED_SERVICE_UUIDS_128BIT as u8,
+    ServiceData = ffi::BLE_GAP_AD_TYPE_SERVICE_DATA as u8,
+    PublicTargetAddress = ffi::BLE_GAP_AD_TYPE_PUBLIC_TARGET_ADDRESS as u8,
+    RandomTargetAddress = ffi::BLE_GAP_AD_TYPE_RANDOM_TARGET_ADDRESS as u8,
+    Appearance = ffi::BLE_GAP_AD_TYPE_APPEARANCE as u8,
+    AdvertisingInterval = ffi::BLE_GAP_AD_TYPE_ADVERTISING_INTERVAL as u8,
+    LeBluetoothDeviceAddress = ffi::BLE_GAP_AD_TYPE_LE_BLUETOOTH_DEVICE_ADDRESS as u8,
+    LeRole = ffi::BLE_GAP_AD_TYPE_LE_ROLE as u8,
+    SimplePairngHashC256 = ffi::BLE_GAP_AD_TYPE_SIMPLE_PAIRING_HASH_C256 as u8,
+    SimplePairngRandomizerR256 = ffi::BLE_GAP_AD_TYPE_SIMPLE_PAIRING_RANDOMIZER_R256 as u8,
+    ServiceData32bitUuid = ffi::BLE_GAP_AD_TYPE_SERVICE_DATA_32BIT_UUID as u8,
+    ServiceData128bitUuid = ffi::BLE_GAP_AD_TYPE_SERVICE_DATA_128BIT_UUID as u8,
+    Uri = ffi::BLE_GAP_AD_TYPE_URI as u8,
+    Information3dData = ffi::BLE_GAP_AD_TYPE_3D_INFORMATION_DATA as u8,
+    ManufacturerSpecificData = ffi::BLE_GAP_AD_TYPE_MANUFACTURER_SPECIFIC_DATA as u8,
+}
