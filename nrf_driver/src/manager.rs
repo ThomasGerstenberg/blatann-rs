@@ -93,7 +93,7 @@ fn run_event_loop(driver: Arc<NrfDriver>, receiver: mpsc::Receiver<BleEvent>) {
             Err(_) => return
         };
 
-        driver.clone().process_event(&ble_event);
+        driver.clone().process_event(ble_event);
     }
 }
 
@@ -106,12 +106,6 @@ pub(crate) unsafe extern "C" fn event_handler(adapter: *mut ffi::adapter_t, ble_
         Some(x) => x,
     };
 
-    match BleEvent::from_c(ble_event) {
-        None => {
-            warn!("Unable to decode event, id {}", (*ble_event).header.evt_id);
-        }
-        Some(event) => {
-            coordinator.sender.send(event).unwrap();
-        }
-    }
+    let event = BleEvent::from_c(ble_event);
+    coordinator.sender.send(event).unwrap();
 }

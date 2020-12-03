@@ -1,16 +1,18 @@
 use crate::ffi;
 use num_traits::FromPrimitive;
 use crate::ffi::{ble_evt_user_mem_release_t, ble_common_evt_t};
+use crate::common::types::ConnHandle;
+use crate::common::enums::BleMemType;
 
 
 #[repr(u16)]
 #[derive(FromPrimitive, Copy, Clone, Debug)]
-pub enum BleCommonEventId {
+pub enum CommonEventId {
     MemRequest = ffi::BLE_COMMON_EVTS_BLE_EVT_USER_MEM_REQUEST as u16,
     MemRelease = ffi::BLE_COMMON_EVTS_BLE_EVT_USER_MEM_RELEASE as u16,
 }
 
-impl BleCommonEventId {
+impl CommonEventId {
     pub fn try_from(id: u16) -> Option<Self> {
         FromPrimitive::from_u16(id)
     }
@@ -18,38 +20,36 @@ impl BleCommonEventId {
 
 
 #[derive(Copy, Clone, Debug)]
-pub enum BleCommonEvent {
-    MemRequest(MemRequest),
-    MemRelease(MemRelease),
+pub enum CommonEvent {
+    MemRequest(CommonEventMemRequest),
+    MemRelease(CommonEventMemRelease),
 }
 
-impl BleCommonEvent {
-    pub unsafe fn from_c(id: BleCommonEventId, e: *const ble_common_evt_t) -> Self {
+impl CommonEvent {
+    pub(crate) unsafe fn from_c(id: CommonEventId, e: *const ble_common_evt_t) -> Self {
         match id {
-            BleCommonEventId::MemRequest => BleCommonEvent::MemRequest(MemRequest::from_c(&(*e).params.user_mem_request)),
-            BleCommonEventId::MemRelease => BleCommonEvent::MemRelease(MemRelease::from_c(&(*e).params.user_mem_release))
+            CommonEventId::MemRequest => CommonEvent::MemRequest(CommonEventMemRequest::from_c((*e).conn_handle, &(*e).params.user_mem_request)),
+            CommonEventId::MemRelease => CommonEvent::MemRelease(CommonEventMemRelease::from_c(&(*e).params.user_mem_release))
         }
     }
 }
 
 
-#[repr(u8)]
-#[derive(FromPrimitive, Copy, Clone, Debug)]
-pub enum BleMemType {
-    Invalid = ffi::BLE_USER_MEM_TYPE_INVALID as u8,
-    GattsQueuedWrites = ffi::BLE_USER_MEM_TYPE_GATTS_QUEUED_WRITES as u8,
-}
-
-
 #[derive(Debug, Copy, Clone)]
-pub struct MemRequest {
-    pub mem_type: BleMemType
+pub struct CommonEventMemRequest {
+    pub conn_handle: ConnHandle,
+    pub mem_type: BleMemType,
 }
 
 
-impl MemRequest {
-    unsafe fn from_c(e: *const ffi::ble_evt_user_mem_request_t) -> Self {
+impl CommonEventMemRequest {
+    pub fn id() -> u16 {
+        CommonEventId::MemRequest as u16
+    }
+
+    unsafe fn from_c(conn_handle: ConnHandle, e: *const ffi::ble_evt_user_mem_request_t) -> Self {
         Self {
+            conn_handle,
             mem_type: FromPrimitive::from_u8((*e).type_).unwrap_or(BleMemType::Invalid)
         }
     }
@@ -57,13 +57,17 @@ impl MemRequest {
 
 
 #[derive(Debug, Copy, Clone)]
-pub struct MemRelease {
+pub struct CommonEventMemRelease {
     pub mem_type: BleMemType,
     // TODO: Block Data
 }
 
 
-impl MemRelease {
+impl CommonEventMemRelease {
+    pub fn id() -> u16 {
+        CommonEventId::MemRelease as u16
+    }
+
     unsafe fn from_c(e: *const ble_evt_user_mem_release_t) -> Self {
         Self {
             mem_type: FromPrimitive::from_u8((*e).type_).unwrap_or(BleMemType::Invalid)

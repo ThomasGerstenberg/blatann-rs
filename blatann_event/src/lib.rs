@@ -25,7 +25,10 @@ pub trait Subscribable<TSender, TEvent: Clone> {
     fn name(&self) -> &str;
     fn subscribe(&self, subscriber: Arc<dyn Subscriber<TSender, TEvent>>) -> Uuid;
     fn subscribe_once(&self, subscriber: Arc<dyn Subscriber<TSender, TEvent>>) -> Uuid;
-    fn unsubscribe(&self, id: &Uuid);
+}
+
+pub trait Unsubscribable {
+    fn unsubscribe(&self, id: Uuid);
 }
 
 #[derive(Debug, Copy, Clone)]

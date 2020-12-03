@@ -2,7 +2,7 @@ use std::sync::{Arc, Mutex, Weak};
 
 use uuid::Uuid;
 
-use crate::{Subscribable, Subscriber, SubscriberAction};
+use crate::{Subscribable, Subscriber, SubscriberAction, Unsubscribable};
 
 #[derive(Debug, Copy, Clone)]
 enum SubscriptionMode {
@@ -38,8 +38,7 @@ impl<S, E: Clone> EventSubscription<S, E> {
     }
 }
 
-pub struct Publisher<TSender, TEvent: Clone>
-{
+pub struct Publisher<TSender, TEvent: Clone> {
     name: String,
     subscribers: Mutex<Vec<EventSubscription<TSender, TEvent>>>,
 }
@@ -98,8 +97,11 @@ impl<TSender, TEvent: Clone> Subscribable<TSender, TEvent> for Publisher<TSender
         return self.subscribe_impl(handler, SubscriptionMode::Once);
     }
 
-    fn unsubscribe(&self, id: &Uuid) {
+}
+
+impl<TSender, TEvent: Clone> Unsubscribable for Publisher<TSender, TEvent> {
+    fn unsubscribe(&self, id: Uuid) {
         let mut subscribers = self.subscribers.lock().unwrap();
-        subscribers.retain(|s| { s.id != *id });
+        subscribers.retain(|s| { s.id != id });
     }
 }

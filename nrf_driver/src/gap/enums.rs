@@ -67,3 +67,20 @@ pub enum BleAdvDataType {
     Information3dData = ffi::BLE_GAP_AD_TYPE_3D_INFORMATION_DATA as u8,
     ManufacturerSpecificData = ffi::BLE_GAP_AD_TYPE_MANUFACTURER_SPECIFIC_DATA as u8,
 }
+
+#[repr(u8)]
+#[derive(FromPrimitive, Copy, Clone, Debug)]
+pub enum BleGapRole {
+    Invalid = ffi::BLE_GAP_ROLE_INVALID as u8,
+    Peripheral = ffi::BLE_GAP_ROLE_PERIPH as u8,
+    Central = ffi::BLE_GAP_ROLE_CENTRAL as u8,
+}
+
+#[repr(u8)]
+#[derive(FromPrimitive, Copy, Clone, Debug)]
+pub enum BleGapPhy {
+    Auto = ffi::BLE_GAP_PHY_AUTO as u8,
+    OneMbps = ffi::BLE_GAP_PHY_1MBPS as u8,
+    TwoMbps = ffi::BLE_GAP_PHY_2MBPS as u8,
+    Coded = ffi::BLE_GAP_PHY_CODED as u8
+}

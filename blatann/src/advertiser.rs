@@ -6,12 +6,13 @@ use blatann_event::event_waitable::EventWaitable;
 use nrf_driver::driver::NrfDriver;
 use nrf_driver::error::{NrfError, NrfErrorType, NrfResult};
 use nrf_driver::gap::enums::*;
-use nrf_driver::gap::events::BleGapTimeout;
+use nrf_driver::gap::events::GapEventTimeout;
 use nrf_driver::gap::types::*;
 use nrf_driver::utils::Milliseconds;
 
-use crate::events::AdvertisingTimeoutEvent;
+use crate::events::{AdvertisingTimeoutEvent, ConnectionEvent, DisconnectionEvent};
 use crate::advertise_data::{AdvData, MAX_ADVERTISE_ENCODED_LEN};
+use crate::peer::Peer;
 
 pub type AdvType = BleGapAdvertisingType;
 
@@ -41,20 +42,24 @@ impl Default for AdvState {
 
 pub struct Advertiser {
     driver: Arc<NrfDriver>,
+    central: Arc<Peer>,
     pub on_timeout: Publisher<Self, AdvertisingTimeoutEvent>,
     state: Mutex<AdvState>,
 }
 
 
 impl Advertiser {
-    pub fn new(driver: Arc<NrfDriver>) -> Arc<Self> {
+    pub(crate) fn new(driver: &Arc<NrfDriver>, central: &Arc<Peer>) -> Arc<Self> {
         let advertiser = Arc::new(Self {
             driver: driver.clone(),
+            central: central.clone(),
             on_timeout: Publisher::new("Advertising Timeout"),
             state: Mutex::new(Default::default()),
         });
 
         driver.events.gap_timeout.subscribe(advertiser.clone());
+        central.on_connect.subscribe(advertiser.clone());
+        central.on_disconnect.subscribe(advertiser.clone());
 
         return advertiser;
     }
@@ -73,12 +78,12 @@ impl Advertiser {
 
         if let Some(a) = &adv_data {
             if a.len() > MAX_ADVERTISE_ENCODED_LEN {
-                return Err(NrfErrorType::DataSize.to_error());
+                return NrfErrorType::DataSize.to_result();
             }
         };
         if let Some(a) = &scan_data {
             if a.len() > MAX_ADVERTISE_ENCODED_LEN {
-                return Err(NrfErrorType::DataSize.to_error());
+                return NrfErrorType::DataSize.to_result();
             }
         };
 
@@ -86,8 +91,9 @@ impl Advertiser {
     }
 
     pub fn start(&self) -> AdvWaitableResult<AdvertisingTimeoutEvent> {
-        self._stop().unwrap();
-        self._start().and_then(|_| {
+        self._stop().and_then(|_| {
+            self._start()
+        }).and_then(|_| {
             Ok(EventWaitable::new(&self.on_timeout))
         })
     }
@@ -103,10 +109,9 @@ impl Advertiser {
     }
 
     pub fn stop(&self) -> Result<(), NrfError> {
-        {
-            let mut state = self.state.lock().unwrap();
-            state.auto_restart = false;
-        }
+        let mut state = self.state.lock().unwrap();
+        state.auto_restart = false;
+        drop(state);
 
         self._stop()
     }
@@ -125,24 +130,46 @@ impl Advertiser {
     }
 }
 
-impl Subscriber<NrfDriver, BleGapTimeout> for Advertiser {
-    fn handle(self: Arc<Self>, _sender: Arc<NrfDriver>, event: BleGapTimeout) -> Option<SubscriberAction> {
+impl Subscriber<Peer, ConnectionEvent> for Advertiser {
+    fn handle(self: Arc<Self>, sender: Arc<Peer>, event: ConnectionEvent) -> Option<SubscriberAction> {
+        let mut state = self.state.lock().unwrap();
+        state.is_advertising = false;
+        return None;
+    }
+}
+
+impl Subscriber<Peer, DisconnectionEvent> for Advertiser {
+    fn handle(self: Arc<Self>, _sender: Arc<Peer>, _event: DisconnectionEvent) -> Option<SubscriberAction> {
+        let auto_restart_enabled = {
+            self.state.lock().unwrap().auto_restart
+        };
+
+        if auto_restart_enabled {
+            info!("Re-enabling advertising after disconnect");
+            self._start().unwrap_or_else(|e| {
+                warn!("Failed to auto-restart with error {:?}", e);
+            });
+        }
+
+        return None;
+    }
+}
+
+impl Subscriber<NrfDriver, GapEventTimeout> for Advertiser {
+    fn handle(self: Arc<Self>, _sender: Arc<NrfDriver>, event: GapEventTimeout) -> Option<SubscriberAction> {
         if let BleGapTimeoutSource::Advertising = event.src {
             // Notify that advertising timed out first which may call stop() to disable auto-restart
             self.on_timeout.dispatch(self.clone(), AdvertisingTimeoutEvent {});
 
-            {
-                let mut state = self.state.lock().unwrap();
-                if state.auto_restart {
-                    let params = BleGapAdvParams::new(state.interval, state.timeout_s, state.adv_type);
-                    self.driver.ble_gap_adv_start(&params).unwrap_or_else(|e| {
-                        warn!("Failed to auto-restart with error {:?}", e);
-                    });
-                } else {
-                    state.is_advertising = false;
-                }
+            let mut state = self.state.lock().unwrap();
+            if state.auto_restart {
+                let params = BleGapAdvParams::new(state.interval, state.timeout_s, state.adv_type);
+                self.driver.ble_gap_adv_start(&params).unwrap_or_else(|e| {
+                    warn!("Failed to auto-restart with error {:?}", e);
+                });
+            } else {
+                state.is_advertising = false;
             }
-
         }
         return None;
     }

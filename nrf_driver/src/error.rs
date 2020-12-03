@@ -74,7 +74,33 @@ impl NrfErrorType {
     pub fn to_error(self) -> NrfError {
         NrfError {
             error_type: self,
-            error_code: self as u32
+            error_code: self as u32,
+        }
+    }
+
+    pub fn to_result(self) -> NrfResult<()> {
+        let result = NrfError {
+            error_type: self,
+            error_code: self as u32,
+        };
+        if let NrfErrorType::Success = self {
+            Ok(())
+        } else {
+            Err(result)
+        }
+    }
+
+    pub fn to_result_typed<T, F>(self, f: F) -> NrfResult<T>
+        where F: FnOnce() -> T
+    {
+        let result = NrfError {
+            error_type: self,
+            error_code: self as u32,
+        };
+        if let NrfErrorType::Success = self {
+            Ok(f())
+        } else {
+            Err(result)
         }
     }
 }
@@ -103,7 +129,8 @@ impl NrfError {
     }
 
     pub fn make_result_typed<T: Sized, F>(err: u32, f: F) -> NrfResult<T>
-        where F: FnOnce() -> T {
+        where F: FnOnce() -> T
+    {
         if err == ffi::NRF_SUCCESS {
             Ok(f())
         } else {

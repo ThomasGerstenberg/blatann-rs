@@ -1,16 +1,16 @@
+use std::ptr::null;
 use std::sync::{Arc, Mutex};
 use std::sync::atomic::{AtomicBool, Ordering};
 
-use blatann_event::Publisher;
+use uuid::Uuid;
 
-use crate::ble_event::BleEvent;
-use crate::common::events::*;
+use crate::ble_event::{BleEvent, BleEventId};
+use crate::common::types::ConnHandle;
+use crate::driver_events::NrfDriverEvents;
 use crate::error::{NrfError, NrfResult};
 use crate::ffi;
-use crate::gap::events::*;
 use crate::gap::types::*;
 use crate::manager::event_handler;
-use std::ptr::null;
 
 #[allow(dead_code)]
 pub struct NrfDriver {
@@ -22,11 +22,6 @@ pub struct NrfDriver {
     transport_layer: Mutex<*mut ffi::transport_layer_t>,
     log_driver_comms: bool,
     is_open: AtomicBool,
-}
-
-#[allow(dead_code)]
-pub struct NrfDriverEvents {
-    pub gap_timeout: Publisher<NrfDriver, BleGapTimeout>
 }
 
 
@@ -51,9 +46,7 @@ impl NrfDriver {
                 transport_layer: Mutex::new(transport_layer),
                 log_driver_comms,
                 is_open: AtomicBool::new(false),
-                events: NrfDriverEvents {
-                    gap_timeout: Publisher::new("Gap Timeout")
-                },
+                events: NrfDriverEvents::new(),
             }
         }
     }
@@ -101,6 +94,15 @@ impl NrfDriver {
         NrfError::make_result(err)
     }
 
+    pub fn ble_user_mem_reply(&self, conn_handle: ConnHandle) -> NrfResult<()> {
+        let err = unsafe {
+            let adapter = self.adapter.lock().unwrap();
+            ffi::sd_ble_user_mem_reply(*adapter, conn_handle, null())
+        };
+
+        NrfError::make_result(err)
+    }
+
     pub fn ble_gap_addr_get(&self) -> NrfResult<BleGapAddress> {
         let mut addr = ffi::ble_gap_addr_t {
             _bitfield_1: ffi::ble_gap_addr_t::new_bitfield_1(0, 0),
@@ -112,7 +114,7 @@ impl NrfDriver {
             ffi::sd_ble_gap_addr_get(*adapter, &mut addr)
         };
 
-        return NrfError::make_result_typed(err, || BleGapAddress::new_from_c(&addr));
+        return NrfError::make_result_typed(err, || BleGapAddress::from_c(&addr));
     }
 
     pub fn ble_gap_addr_set(&self, address: &BleGapAddress) -> NrfResult<()> {
@@ -140,7 +142,7 @@ impl NrfDriver {
             let adapter = self.adapter.lock().unwrap();
             ffi::sd_ble_gap_adv_data_set(*adapter,
                                          adv_ptr, adv_size as u8,
-                                         scan_ptr, scan_size as u8
+                                         scan_ptr, scan_size as u8,
             )
         };
 
@@ -167,21 +169,18 @@ impl NrfDriver {
         NrfError::make_result(err)
     }
 
-    pub(crate) fn process_event(self: Arc<Self>, ble_event: &BleEvent) {
+    pub fn unsubscribe_from_event(&self, event_id: BleEventId, sub_id: Uuid) {
+        self.events.unsubscribe(event_id, sub_id)
+    }
+
+    pub(crate) fn process_event(self: Arc<Self>, ble_event: BleEvent) {
         debug!("[{}] Event: {:?}", self.port, ble_event);
-        match ble_event {
-            BleEvent::Common(sub_event) => {
-                match sub_event {
-                    BleCommonEvent::MemRequest(_) => {}
-                    BleCommonEvent::MemRelease(_) => {}
-                }
+        match ble_event.data {
+            Some(e) => {
+                self.events.dispatch(self.clone(), e)
             }
-            BleEvent::Gap(sub_event) => {
-                match sub_event {
-                    BleGapEvent::Timeout(e) => {
-                        self.events.gap_timeout.dispatch(self.clone(), e.clone())
-                    }
-                }
+            None => {
+                warn!("Unable to decode event, id {}", ble_event.id);
             }
         }
     }
