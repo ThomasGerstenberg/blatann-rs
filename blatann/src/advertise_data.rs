@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use nrf_driver::gap::enums::{BleGapAdvertisingType, BleAdvDataType};
+use nrf_driver::gap::enums::{BleAdvDataType};
 
 pub const MAX_ADVERTISE_ENCODED_LEN: usize = 31;
 

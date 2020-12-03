@@ -35,7 +35,7 @@ pub trait Unsubscribable {
 pub struct EventArgs<S, E: Clone>(S, E);
 
 
-pub trait Waitable<TSender, TEvent: Clone> {
-    fn wait_timeout(&self, timeout: Duration) -> Result<EventArgs<Arc<TSender>, TEvent>, RecvTimeoutError>;
-    fn wait(&self) -> Result<EventArgs<Arc<TSender>, TEvent>, RecvError>;
+pub trait Waitable<T> {
+    fn wait_timeout(&self, timeout: Duration) -> Result<T, RecvTimeoutError>;
+    fn wait(&self) -> Result<T, RecvError>;
 }

@@ -13,10 +13,9 @@ use nrf_driver::utils::Milliseconds;
 use crate::events::{AdvertisingTimeoutEvent, ConnectionEvent, DisconnectionEvent};
 use crate::advertise_data::{AdvData, MAX_ADVERTISE_ENCODED_LEN};
 use crate::peer::Peer;
+use crate::connection_waitable::ConnectionWaitable;
 
 pub type AdvType = BleGapAdvertisingType;
-
-pub type AdvWaitableResult<E> = Result<Arc<EventWaitable<Advertiser, E>>, NrfError>;
 
 pub const ADVERTISE_FOREVER: u16 = 0;
 
@@ -90,11 +89,11 @@ impl Advertiser {
         self.driver.ble_gap_adv_data_set(&adv_data, &scan_data)
     }
 
-    pub fn start(&self) -> AdvWaitableResult<AdvertisingTimeoutEvent> {
+    pub fn start(&self) -> NrfResult<Arc<ConnectionWaitable>> {
         self._stop().and_then(|_| {
             self._start()
         }).and_then(|_| {
-            Ok(EventWaitable::new(&self.on_timeout))
+            Ok(ConnectionWaitable::new(self.driver.clone(), self.central.clone(), BleGapRole::Peripheral))
         })
     }
 
@@ -131,7 +130,7 @@ impl Advertiser {
 }
 
 impl Subscriber<Peer, ConnectionEvent> for Advertiser {
-    fn handle(self: Arc<Self>, sender: Arc<Peer>, event: ConnectionEvent) -> Option<SubscriberAction> {
+    fn handle(self: Arc<Self>, _sender: Arc<Peer>, _event: ConnectionEvent) -> Option<SubscriberAction> {
         let mut state = self.state.lock().unwrap();
         state.is_advertising = false;
         return None;

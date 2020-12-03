@@ -3,6 +3,7 @@ use std::sync::{Arc, Mutex, Weak};
 use uuid::Uuid;
 
 use crate::{Subscribable, Subscriber, SubscriberAction, Unsubscribable};
+use std::sync::atomic::AtomicBool;
 
 #[derive(Debug, Copy, Clone)]
 enum SubscriptionMode {
@@ -38,9 +39,28 @@ impl<S, E: Clone> EventSubscription<S, E> {
     }
 }
 
+impl<S, E: Clone> Clone for EventSubscription<S, E> {
+    fn clone(&self) -> Self {
+        Self {
+            id: self.id.clone(),
+            handler: self.handler.clone(),
+            mode: self.mode.clone(),
+            should_remove: self.should_remove,
+        }
+    }
+
+    fn clone_from(&mut self, source: &Self) {
+        self.id = source.id.clone();
+        self.handler = source.handler.clone();
+        self.mode = source.mode.clone();
+        self.should_remove = source.should_remove;
+    }
+}
+
 pub struct Publisher<TSender, TEvent: Clone> {
     name: String,
     subscribers: Mutex<Vec<EventSubscription<TSender, TEvent>>>,
+    dispatch_lock: Mutex<()>
 }
 
 impl<TSender, TEvent: Clone> Publisher<TSender, TEvent> {
@@ -48,24 +68,33 @@ impl<TSender, TEvent: Clone> Publisher<TSender, TEvent> {
         Self {
             name: name.to_string(),
             subscribers: Mutex::new(vec![]),
+            dispatch_lock: Mutex::new(()),
         }
     }
 
     pub fn dispatch(&self, sender: Arc<TSender>, event: TEvent) {
-        let mut cleanup = false;
+        let _dispatch_lock = self.dispatch_lock.lock().unwrap();
 
-        let mut subscribers = self.subscribers.lock().unwrap();
-
-        for sub in subscribers.iter_mut() {
-            sub.process_event(sender.clone(), event.to_owned());
-
-            if sub.should_remove {
-                cleanup = true;
+        // Get a clone of the list to iterate mutex-free
+        let mut temp_subs = vec![];
+        {
+            let subs = self.subscribers.lock().unwrap();
+            for s in subs.iter() {
+                temp_subs.push(s.clone())
             }
+        };
+
+        for sub in temp_subs.iter_mut() {
+            sub.process_event(sender.clone(), event.to_owned());
         }
 
-        if cleanup {
-            subscribers.retain(|s| { !s.should_remove });
+        // For each of the subs that need cleanup, remove from the mutex-locked list
+        temp_subs.retain(|s| { s.should_remove });
+        {
+            let mut subscribers = self.subscribers.lock().unwrap();
+            for sub in temp_subs.iter() {
+                subscribers.retain(|s| s.id != sub.id)
+            }
         }
     }
 

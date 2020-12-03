@@ -100,8 +100,8 @@ impl Peer {
             state.mtu_size = 23; // TODO magic number
 
             // disconnect from all the connection-based event handlers
-            for (event_id, sub_id) in state.connection_based_subs {
-                self.driver.unsubscribe_from_event(event_id, sub_id)
+            for (event_id, sub_id) in state.connection_based_subs.iter() {
+                self.driver.unsubscribe_from_event(*event_id, *sub_id)
             }
             state.connection_based_subs.clear()
         }
@@ -129,8 +129,8 @@ impl Subscriber<NrfDriver, GapEventDisconnected> for Peer {
                 send_event = true;
 
                 // disconnect from all the connection-based event handlers
-                for (event_id, sub_id) in state.connection_based_subs {
-                    self.driver.unsubscribe_from_event(event_id, sub_id)
+                for (event_id, sub_id) in state.connection_based_subs.iter() {
+                    self.driver.unsubscribe_from_event(*event_id, *sub_id)
                 }
                 state.connection_based_subs.clear()
             }

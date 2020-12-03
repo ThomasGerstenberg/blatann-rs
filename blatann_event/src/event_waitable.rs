@@ -29,7 +29,7 @@ impl<TSender: 'static, TEvent: Clone + 'static> EventWaitable<TSender, TEvent> {
     }
 }
 
-impl<TSender: 'static, TEvent: Clone + 'static> Waitable<TSender, TEvent> for EventWaitable<TSender, TEvent> {
+impl<TSender: 'static, TEvent: Clone + 'static> Waitable<EventArgs<Arc<TSender>, TEvent>> for EventWaitable<TSender, TEvent> {
     fn wait_timeout(&self, timeout: Duration) -> Result<EventArgs<Arc<TSender>, TEvent>, RecvTimeoutError> {
         self.receiver.recv_timeout(timeout)
     }
