@@ -33,9 +33,9 @@ fn main() {
     info!("Started advertising!");
     let mut adv_data = AdvData::default();
     adv_data.add_entry(AdvDataType::CompleteLocalName as u8, b"Blatann-rs!!");
-    device_com11.advertiser.set_params(100_f64, 5, AdvType::ConnectableUndirected, true);
-    device_com13.advertiser.set_params(50_f64, 50, AdvType::NonconnectableUndirected, false);
-    device_com11.advertiser.set_data(Some(&adv_data), None).unwrap();
+    device_com11.advertiser.set_params(100_f64, 5, AdvType::NonconnectableUndirected, true);
+    device_com13.advertiser.set_params(50_f64, 50, AdvType::ConnectableUndirected, false);
+    device_com13.advertiser.set_data(Some(&adv_data), None).unwrap();
     // device_com13.advertiser.set_data(Some(&adv_data), None).unwrap();
 
     let waitable1 = device_com11.advertiser.start().unwrap();
@@ -43,7 +43,8 @@ fn main() {
     info!("Waiting for COM11");
     waitable1.wait().unwrap();
     info!("Waiting for COM13");
-    waitable2.wait().unwrap();
+    let result = waitable2.wait().unwrap();
+    info!("Got Peer: {:?}", result.is_some());
     info!("Done!")
 }
 

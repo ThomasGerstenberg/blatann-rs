@@ -3,7 +3,6 @@ use std::sync::{Arc, Mutex, Weak};
 use uuid::Uuid;
 
 use crate::{Subscribable, Subscriber, SubscriberAction, Unsubscribable};
-use std::sync::atomic::AtomicBool;
 
 #[derive(Debug, Copy, Clone)]
 enum SubscriptionMode {
@@ -15,11 +14,10 @@ struct EventSubscription<S, E: Clone> {
     id: Uuid,
     handler: Weak<dyn Subscriber<S, E>>,
     mode: SubscriptionMode,
-    should_remove: bool,
 }
 
 impl<S, E: Clone> EventSubscription<S, E> {
-    fn process_event(&mut self, sender: Arc<S>, event: E) {
+    fn process_event(&self, sender: Arc<S>, event: E) -> bool {
         // Check if the handler is still a valid reference
         let action = match self.handler.upgrade() {
             // Valid, emit the event and return the action
@@ -31,11 +29,13 @@ impl<S, E: Clone> EventSubscription<S, E> {
         };
 
         if let Some(SubscriberAction::Unsubscribe) = action {
-            self.should_remove = true;
+            return true;
         }
         if let SubscriptionMode::Once = self.mode {
-            self.should_remove = true;
+            return true;
         }
+
+        return false;
     }
 }
 
@@ -45,7 +45,6 @@ impl<S, E: Clone> Clone for EventSubscription<S, E> {
             id: self.id.clone(),
             handler: self.handler.clone(),
             mode: self.mode.clone(),
-            should_remove: self.should_remove,
         }
     }
 
@@ -53,9 +52,9 @@ impl<S, E: Clone> Clone for EventSubscription<S, E> {
         self.id = source.id.clone();
         self.handler = source.handler.clone();
         self.mode = source.mode.clone();
-        self.should_remove = source.should_remove;
     }
 }
+
 
 pub struct Publisher<TSender, TEvent: Clone> {
     name: String,
@@ -76,23 +75,24 @@ impl<TSender, TEvent: Clone> Publisher<TSender, TEvent> {
         let _dispatch_lock = self.dispatch_lock.lock().unwrap();
 
         // Get a clone of the list to iterate mutex-free
-        let mut temp_subs = vec![];
-        {
+        let temp_subs: Vec<_> = {
             let subs = self.subscribers.lock().unwrap();
-            for s in subs.iter() {
-                temp_subs.push(s.clone())
-            }
+            subs.iter().map(|s| s.clone()).collect()
         };
 
-        for sub in temp_subs.iter_mut() {
-            sub.process_event(sender.clone(), event.to_owned());
+        let mut subs_to_remove = vec![];
+
+        for sub in temp_subs.iter() {
+            let should_remove = sub.process_event(sender.clone(), event.to_owned());
+            if should_remove {
+                subs_to_remove.push(sub)
+            }
         }
 
         // For each of the subs that need cleanup, remove from the mutex-locked list
-        temp_subs.retain(|s| { s.should_remove });
         {
             let mut subscribers = self.subscribers.lock().unwrap();
-            for sub in temp_subs.iter() {
+            for sub in subs_to_remove {
                 subscribers.retain(|s| s.id != sub.id)
             }
         }
@@ -104,7 +104,6 @@ impl<TSender, TEvent: Clone> Publisher<TSender, TEvent> {
             id: id.clone(),
             handler: Arc::downgrade(&handler),
             mode,
-            should_remove: false,
         };
         let mut subscribers = self.subscribers.lock().unwrap();
         subscribers.push(sub);

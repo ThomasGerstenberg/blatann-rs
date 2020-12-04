@@ -8,7 +8,6 @@ use uuid::Uuid;
 use crate::{EventArgs, Subscribable, Subscriber, SubscriberAction, Waitable};
 
 pub struct EventWaitable<TSender: 'static, TEvent: Clone + 'static> {
-    subscription_id: RefCell<Option<Uuid>>,
     sender: mpsc::Sender<EventArgs<Arc<TSender>, TEvent>>,
     receiver: mpsc::Receiver<EventArgs<Arc<TSender>, TEvent>>,
 }
@@ -19,11 +18,9 @@ impl<TSender: 'static, TEvent: Clone + 'static> EventWaitable<TSender, TEvent> {
         let waitable = Arc::new(Self {
             sender,
             receiver,
-            subscription_id: RefCell::new(None),
         });
 
-        let sub_id = event.subscribe(waitable.clone());
-        waitable.subscription_id.replace(Some(sub_id));
+        event.subscribe(waitable.clone());
 
         return waitable;
     }
