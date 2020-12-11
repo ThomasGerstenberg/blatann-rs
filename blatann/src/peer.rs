@@ -1,4 +1,4 @@
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, MutexGuard};
 
 use blatann_event::{EventWaitable, Publisher, Subscribable, Subscriber, SubscriberAction};
 use uuid::Uuid;
@@ -107,8 +107,7 @@ impl Peer {
     }
 
     pub(crate) fn peer_connected(self: &Arc<Self>, conn_handle: ConnHandle, address: &BleGapAddress, conn_params: &BleGapConnParams) {
-        {
-            let mut state = self.state.lock().unwrap();
+        self.update_state(|state| {
             state.connection_state = PeerState::Connected;
             state.conn_handle = conn_handle;
             state.peer_address = Some(address.clone());
@@ -120,8 +119,8 @@ impl Peer {
             for (event_id, sub_id) in state.connection_based_subs.iter() {
                 self.driver.unsubscribe_from_event(*event_id, *sub_id)
             }
-            state.connection_based_subs.clear()
-        }
+            state.connection_based_subs.clear();
+        });
 
         self.subscribe_for_connection(self.clone(), &self.driver.events.phy_update_request);
         self.subscribe_for_connection(self.clone(), &self.driver.events.phy_update);
@@ -135,34 +134,68 @@ impl Peer {
         where S: Subscriber<NrfDriver, E> {
         let event_id = event.id();
         let subscription_id = event.subscribe(subscriber);
+
+        self.update_state(|s| {
+            s.connection_based_subs.push((event_id, subscription_id))
+        });
+    }
+
+    fn conn_handle(&self) -> ConnHandle {
+        let state = self.state.lock().unwrap();
+        state.conn_handle
+    }
+
+    fn read_state<F, T>(&self, f: F) -> T
+        where F: FnOnce(&MutexGuard<State>) -> T {
+
+        let state = self.state.lock().unwrap();
+        f(&state)
+    }
+
+    fn update_state<F, T>(&self, f: F) -> T
+        where F: FnOnce(&mut MutexGuard<State>) -> T {
+
         let mut state = self.state.lock().unwrap();
-        state.connection_based_subs.push((event_id, subscription_id))
+        f(&mut state)
+    }
+
+    fn read_state_if<F, T>(&self, conn_handle: ConnHandle, f: F) -> Option<T>
+        where F: FnOnce(&MutexGuard<State>) -> T {
+
+        let state = self.state.lock().unwrap();
+        if conn_handle == state.conn_handle {
+            Some(f(&state))
+        } else {
+            None
+        }
+    }
+
+    fn update_state_if<F, T>(&self, conn_handle: ConnHandle, f: F) -> Option<T>
+        where F: FnOnce(&mut MutexGuard<State>) -> T {
+
+        let mut state = self.state.lock().unwrap();
+        if conn_handle == state.conn_handle {
+            Some(f(&mut state))
+        } else {
+            None
+        }
     }
 }
 
 impl Subscriber<NrfDriver, GapEventDisconnected> for Peer {
     fn handle(self: Arc<Self>, _sender: Arc<NrfDriver>, event: GapEventDisconnected) -> Option<SubscriberAction> {
-        let mut send_event = false;
-        {
-            let mut state = self.state.lock().unwrap();
-            if state.conn_handle == event.conn_handle {
-                state.connection_state = PeerState::Disconnected;
-                state.conn_handle = CONN_HANDLE_INVALID;
-                send_event = true;
+        self.update_state_if(event.conn_handle, |s| {
+            s.connection_state = PeerState::Disconnected;
+            s.conn_handle = CONN_HANDLE_INVALID;
 
-                // disconnect from all the connection-based event handlers
-                for (event_id, sub_id) in state.connection_based_subs.iter() {
-                    self.driver.unsubscribe_from_event(*event_id, *sub_id)
-                }
-                state.connection_based_subs.clear()
+            // disconnect from all the connection-based event handlers
+            for (event_id, sub_id) in s.connection_based_subs.iter() {
+                self.driver.unsubscribe_from_event(*event_id, *sub_id);
             }
-        }
+        })?;
 
-        if send_event {
-            self.on_disconnect.dispatch(self.clone(), DisconnectionEvent { reason: event.reason });
-        }
+        self.on_disconnect.dispatch(self.clone(), DisconnectionEvent { reason: event.reason });
 
-        // TODO: Unsubscribe from everything
         return None;
     }
 }
@@ -170,14 +203,9 @@ impl Subscriber<NrfDriver, GapEventDisconnected> for Peer {
 
 impl Subscriber<NrfDriver, GapEventPhyUpdateRequest> for Peer {
     fn handle(self: Arc<Self>, sender: Arc<NrfDriver>, event: GapEventPhyUpdateRequest) -> Option<SubscriberAction> {
-        let (conn_handle, preferred_phy) = {
-            let state = self.state.lock().unwrap();
-            if state.conn_handle != event.conn_handle {
-                return None;
-            }
-
-            (state.conn_handle, state.preferred_phy)
-        };
+        let (conn_handle, preferred_phy) = self.read_state_if(event.conn_handle, |s| {
+            (s.conn_handle, s.preferred_phy)
+        })?;
 
         debug!("Peer-preferred phy - rx:{:?}, tx:{:?}, ours - {:?}",
             event.peer_preferred_phys.rx_phys,
@@ -193,13 +221,9 @@ impl Subscriber<NrfDriver, GapEventPhyUpdateRequest> for Peer {
 
 impl Subscriber<NrfDriver, GapEventPhyUpdate> for Peer {
     fn handle(self: Arc<Self>, _sender: Arc<NrfDriver>, event: GapEventPhyUpdate) -> Option<SubscriberAction> {
-        {
-            let mut state = self.state.lock().unwrap();
-            if state.conn_handle != event.conn_handle {
-                return None;
-            }
-            state.current_phy = event.tx_phy;
-        }
+        self.update_state_if(event.conn_handle, |s| {
+            s.current_phy = event.tx_phy;
+        })?;
 
         self.on_phy_updated.dispatch(self.clone(),
                                      PhyUpdateEvent {
@@ -212,12 +236,8 @@ impl Subscriber<NrfDriver, GapEventPhyUpdate> for Peer {
 
 impl Subscriber<NrfDriver, GapEventDataLengthUpdateRequest> for Peer {
     fn handle(self: Arc<Self>, sender: Arc<NrfDriver>, event: GapEventDataLengthUpdateRequest) -> Option<SubscriberAction> {
-        let conn_handle = {
-            self.state.lock().unwrap().conn_handle
-        };
-
-        if conn_handle == event.conn_handle {
-            sender.ble_gap_data_length_update(conn_handle, None).unwrap();
+        if self.conn_handle() == event.conn_handle {
+            sender.ble_gap_data_length_update(event.conn_handle, None).unwrap();
         }
 
         None
@@ -225,12 +245,8 @@ impl Subscriber<NrfDriver, GapEventDataLengthUpdateRequest> for Peer {
 }
 
 impl Subscriber<NrfDriver, GapEventDataLengthUpdate> for Peer {
-    fn handle(self: Arc<Self>, sender: Arc<NrfDriver>, event: GapEventDataLengthUpdate) -> Option<SubscriberAction> {
-        let conn_handle = {
-            self.state.lock().unwrap().conn_handle
-        };
-
-        if conn_handle == event.conn_handle {
+    fn handle(self: Arc<Self>, _sender: Arc<NrfDriver>, event: GapEventDataLengthUpdate) -> Option<SubscriberAction> {
+        if self.conn_handle() == event.conn_handle {
             let params = DataLengthUpdateEvent {
                 tx_bytes: event.effective_params.max_tx_octets,
                 rx_bytes: event.effective_params.max_rx_octets,
