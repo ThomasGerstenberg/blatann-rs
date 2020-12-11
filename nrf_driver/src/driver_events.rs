@@ -9,22 +9,23 @@ use crate::driver::NrfDriver;
 use crate::gap::events::*;
 use std::collections::HashMap;
 
+trait NrfPublisherType: Unsubscribable {
+    fn id(&self) -> BleEventId;
+    fn name(&self) -> &str;
+}
 
-pub struct NrfEventPublisher<TEvent: Clone> {
+
+pub struct NrfEventPublisher<TEvent: BleEventDataType> {
     id: BleEventId,
     publisher: Publisher<NrfDriver, TEvent>
 }
 
-impl<TEvent: Clone> NrfEventPublisher<TEvent> {
-    pub fn new(name: &str, id: BleEventId) -> Self {
+impl<TEvent: BleEventDataType> NrfEventPublisher<TEvent> {
+    pub fn new(name: &str) -> Self {
         Self {
-            id,
+            id: TEvent::id(),
             publisher: Publisher::new(name)
         }
-    }
-
-    pub fn id(&self) -> BleEventId {
-        self.id
     }
 
     fn dispatch(&self, sender: Arc<NrfDriver>, event: TEvent) {
@@ -32,7 +33,17 @@ impl<TEvent: Clone> NrfEventPublisher<TEvent> {
     }
 }
 
-impl<TEvent: Clone> Subscribable<NrfDriver, TEvent> for NrfEventPublisher<TEvent> {
+impl<TEvent: BleEventDataType> NrfPublisherType for NrfEventPublisher<TEvent> {
+    fn id(&self) -> BleEventId {
+        self.id
+    }
+
+    fn name(&self) -> &str {
+        self.publisher.name()
+    }
+}
+
+impl<TEvent: BleEventDataType> Subscribable<NrfDriver, TEvent> for NrfEventPublisher<TEvent> {
     fn name(&self) -> &str {
         self.publisher.name()
     }
@@ -46,7 +57,7 @@ impl<TEvent: Clone> Subscribable<NrfDriver, TEvent> for NrfEventPublisher<TEvent
     }
 }
 
-impl<TEvent: Clone> Unsubscribable for NrfEventPublisher<TEvent> {
+impl<TEvent: BleEventDataType> Unsubscribable for NrfEventPublisher<TEvent> {
     fn unsubscribe(&self, id: Uuid) {
         self.publisher.unsubscribe(id)
     }
@@ -70,31 +81,31 @@ impl NrfDriverEvents {
     pub(crate) fn new() -> Self {
         Self {
             // Common
-            user_mem_request: NrfEventPublisher::new("User Mem Request", BleEventId::Common(CommonEventId::MemRequest)),
-            user_mem_release: NrfEventPublisher::new("User Mem Release", BleEventId::Common(CommonEventId::MemRelease)),
+            user_mem_request: NrfEventPublisher::new("User Mem Request"),
+            user_mem_release: NrfEventPublisher::new("User Mem Release"),
             // Gap
-            connected: NrfEventPublisher::new("Connected", BleEventId::Gap(GapEventId::Connected)),
-            disconnected: NrfEventPublisher::new("Disconnected", BleEventId::Gap(GapEventId::Disconnected)),
-            gap_timeout: NrfEventPublisher::new("Gap Timeout", BleEventId::Gap(GapEventId::Timeout)),
-            phy_update_request: NrfEventPublisher::new("Phy Update Request", BleEventId::Gap(GapEventId::PhyUpdateRequest)),
-            phy_update: NrfEventPublisher::new("Phy Update", BleEventId::Gap(GapEventId::PhyUpdate)),
-            data_length_update_request: NrfEventPublisher::new("Data Length Update Request", BleEventId::Gap(GapEventId::DataLengthUpdateRequest)),
-            data_length_update: NrfEventPublisher::new("Data Length Update", BleEventId::Gap(GapEventId::DataLengthUpdate)),
+            connected: NrfEventPublisher::new("Connected"),
+            disconnected: NrfEventPublisher::new("Disconnected"),
+            gap_timeout: NrfEventPublisher::new("Gap Timeout"),
+            phy_update_request: NrfEventPublisher::new("Phy Update Request"),
+            phy_update: NrfEventPublisher::new("Phy Update"),
+            data_length_update_request: NrfEventPublisher::new("Data Length Update Request"),
+            data_length_update: NrfEventPublisher::new("Data Length Update"),
         }
     }
 
-    fn events(&self) -> Vec<(BleEventId, &dyn Unsubscribable)> {
+    fn events(&self) -> Vec<&dyn NrfPublisherType> {
         vec![
-            (self.user_mem_request.id, &self.user_mem_request),
-            (self.user_mem_release.id, &self.user_mem_release),
-            (self.gap_timeout.id, &self.gap_timeout),
-            (self.connected.id, &self.connected),
-            (self.disconnected.id, &self.disconnected),
-            (self.gap_timeout.id, &self.gap_timeout),
-            (self.phy_update_request.id, &self.phy_update_request),
-            (self.phy_update.id, &self.phy_update),
-            (self.data_length_update_request.id, &self.data_length_update_request),
-            (self.data_length_update.id, &self.data_length_update)
+            &self.user_mem_request,
+            &self.user_mem_release,
+            &self.gap_timeout,
+            &self.connected,
+            &self.disconnected,
+            &self.gap_timeout,
+            &self.phy_update_request,
+            &self.phy_update,
+            &self.data_length_update_request,
+            &self.data_length_update,
         ]
     }
 
@@ -120,8 +131,8 @@ impl NrfDriverEvents {
         let event_map = self.events()
             .iter()
             .cloned()
-            .map(|(k, v)| { (k.into(), v) })
-            .collect::<HashMap<u16, &dyn Unsubscribable>>();
+            .map(|e| { (e.id().into(), e) })
+            .collect::<HashMap<u16, &dyn NrfPublisherType>>();
 
         let event_val = event_id.into();
         match event_map.get(&event_val) {
