@@ -6,7 +6,7 @@ use crate::common::enums::BleMemType;
 
 
 #[repr(u16)]
-#[derive(FromPrimitive, Copy, Clone, Debug)]
+#[derive(FromPrimitive, ToPrimitive, Copy, Clone, Debug)]
 pub enum CommonEventId {
     MemRequest = ffi::BLE_COMMON_EVTS_BLE_EVT_USER_MEM_REQUEST as u16,
     MemRelease = ffi::BLE_COMMON_EVTS_BLE_EVT_USER_MEM_RELEASE as u16,

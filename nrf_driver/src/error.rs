@@ -160,6 +160,7 @@ impl NrfError {
     }
 }
 
+
 impl fmt::Display for NrfError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.to_string())

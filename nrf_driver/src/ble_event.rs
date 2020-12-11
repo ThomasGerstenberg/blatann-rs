@@ -1,6 +1,7 @@
 use crate::common::events::{CommonEvent, CommonEventId};
 use crate::ffi::ble_evt_t;
 use crate::gap::events::{GapEvent, GapEventId};
+use num_traits::ToPrimitive;
 
 
 #[derive(Copy, Clone, Debug)]
@@ -35,6 +36,17 @@ impl BleEventId {
         }
     }
 }
+
+
+impl Into<u16> for BleEventId {
+    fn into(self) -> u16 {
+        match self {
+            BleEventId::Common(x) => ToPrimitive::to_u16(&x),
+            BleEventId::Gap(x) => ToPrimitive::to_u16(&x)
+        }.unwrap()
+    }
+}
+
 
 #[derive(Copy, Clone, Debug)]
 pub enum BleEventData {

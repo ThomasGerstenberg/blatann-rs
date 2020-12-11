@@ -1,9 +1,6 @@
-use std::cell::RefCell;
 use std::sync::{Arc, mpsc};
 use std::sync::mpsc::{RecvError, RecvTimeoutError};
 use std::time::Duration;
-
-use uuid::Uuid;
 
 use crate::{EventArgs, Subscribable, Subscriber, SubscriberAction, Waitable};
 

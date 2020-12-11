@@ -76,11 +76,17 @@ pub enum BleGapRole {
     Central = ffi::BLE_GAP_ROLE_CENTRAL as u8,
 }
 
-#[repr(u8)]
-#[derive(FromPrimitive, Copy, Clone, Debug)]
-pub enum BleGapPhy {
-    Auto = ffi::BLE_GAP_PHY_AUTO as u8,
-    OneMbps = ffi::BLE_GAP_PHY_1MBPS as u8,
-    TwoMbps = ffi::BLE_GAP_PHY_2MBPS as u8,
-    Coded = ffi::BLE_GAP_PHY_CODED as u8
+bitflags! {
+    pub struct BleGapPhy: u8 {
+        const AUTO = ffi::BLE_GAP_PHY_AUTO as u8;
+        const ONE_MBPS = ffi::BLE_GAP_PHY_1MBPS as u8;
+        const TWO_MBPS = ffi::BLE_GAP_PHY_2MBPS as u8;
+        const CODED = ffi::BLE_GAP_PHY_CODED as u8;
+    }
+}
+
+impl BleGapPhy {
+    pub fn from_bits_or_default(value: u8) -> Self {
+        Self::from_bits(value).unwrap_or_else(|| BleGapPhy::AUTO)
+    }
 }

@@ -251,6 +251,7 @@ name = "nrf_driver"
 version = "0.1.0"
 dependencies = [
  "bindgen",
+ "bitflags",
  "blatann_event",
  "lazy_static",
  "log",

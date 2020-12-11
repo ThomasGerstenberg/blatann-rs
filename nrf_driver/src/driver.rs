@@ -1,4 +1,4 @@
-use std::ptr::null;
+use std::ptr::{null, null_mut};
 use std::sync::{Arc, Mutex};
 use std::sync::atomic::{AtomicBool, Ordering};
 
@@ -11,6 +11,7 @@ use crate::error::{NrfError, NrfResult};
 use crate::ffi;
 use crate::gap::types::*;
 use crate::manager::event_handler;
+use crate::gap::enums::BleGapPhy;
 
 #[allow(dead_code)]
 pub struct NrfDriver {
@@ -114,11 +115,11 @@ impl NrfDriver {
             ffi::sd_ble_gap_addr_get(*adapter, &mut addr)
         };
 
-        return NrfError::make_result_typed(err, || BleGapAddress::from_c(&addr));
+        return NrfError::make_result_typed(err, || addr.into());
     }
 
     pub fn ble_gap_addr_set(&self, address: &BleGapAddress) -> NrfResult<()> {
-        let addr = address.to_c();
+        let addr = address.into();
 
         let err = unsafe {
             let adapter = self.adapter.lock().unwrap();
@@ -150,7 +151,7 @@ impl NrfDriver {
     }
 
     pub fn ble_gap_adv_start(&self, params: &BleGapAdvParams) -> NrfResult<()> {
-        let params = params.to_c();
+        let params = params.into();
 
         let err = unsafe {
             let adapter = self.adapter.lock().unwrap();
@@ -164,6 +165,30 @@ impl NrfDriver {
         let err = unsafe {
             let adapter = self.adapter.lock().unwrap();
             ffi::sd_ble_gap_adv_stop(*adapter)
+        };
+
+        NrfError::make_result(err)
+    }
+
+    pub fn ble_gap_phy_update(&self, conn_handle: ConnHandle, tx_phy: BleGapPhy, rx_phy: BleGapPhy) -> NrfResult<()> {
+        let phys = BleGapPhys::new(tx_phy, rx_phy).into();
+        let err = unsafe {
+            let adapter = self.adapter.lock().unwrap();
+            ffi::sd_ble_gap_phy_update(*adapter, conn_handle, &phys)
+        };
+
+        NrfError::make_result(err)
+    }
+
+    pub fn ble_gap_data_length_update(&self, conn_handle: ConnHandle, params: Option<BleGapDataLengthParams>) -> NrfResult<()> {
+        let params = match params {
+            None => null(),
+            Some(x) => &x.into()
+        };
+
+        let err = unsafe {
+            let adapter = self.adapter.lock().unwrap();
+            ffi::sd_ble_gap_data_length_update(*adapter, conn_handle, params, null_mut())
         };
 
         NrfError::make_result(err)

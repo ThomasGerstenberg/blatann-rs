@@ -13,6 +13,7 @@ use blatann::advertiser::{Advertiser, AdvType};
 use blatann::device::BleDevice;
 use blatann::events::{AdvertisingTimeoutEvent, ConnectionEvent};
 use blatann::peer::Peer;
+use std::thread::{Thread, sleep};
 
 fn configure_log() {
     env_logger::Builder::from_env(Env::default().default_filter_or("debug")).init();
@@ -45,6 +46,7 @@ fn main() {
     info!("Waiting for COM13");
     let result = waitable2.wait().unwrap();
     info!("Got Peer: {:?}", result.is_some());
+    sleep(Duration::from_secs(10));
     info!("Done!")
 }
 

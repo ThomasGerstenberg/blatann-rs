@@ -10,3 +10,4 @@ pub mod events;
 pub mod advertise_data;
 pub mod peer;
 pub mod connection_waitable;
+mod consts;

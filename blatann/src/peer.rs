@@ -9,13 +9,15 @@ use nrf_driver::common::types::ConnHandle;
 use nrf_driver::driver::NrfDriver;
 use nrf_driver::driver_events::NrfEventPublisher;
 use nrf_driver::gap::enums::{BleGapPhy, BleGapRole};
-use nrf_driver::gap::events::GapEventDisconnected;
+use nrf_driver::gap::events::{GapEventDisconnected, GapEventPhyUpdate, GapEventPhyUpdateRequest, GapEventDataLengthUpdateRequest, GapEventDataLengthUpdate};
 use nrf_driver::gap::types::{BleGapAddress, BleGapConnParams};
 
-use crate::events::{ConnectionEvent, DisconnectionEvent};
+use crate::events::*;
+use crate::consts::MTU_SIZE_DEFAULT;
 
 pub type PeerRole = BleGapRole;
 pub type Phy = BleGapPhy;
+
 
 pub enum PeerState {
     Disconnected,
@@ -45,11 +47,11 @@ impl State {
             peer_address: None,
             connection_state,
             conn_params: conn_params.clone(),
-            mtu_size: 23,
-            preferred_mtu_size: 23,
+            mtu_size: MTU_SIZE_DEFAULT,
+            preferred_mtu_size: MTU_SIZE_DEFAULT,
             negotiated_mtu_size: None,
-            preferred_phy: Phy::Auto,
-            current_phy: Phy::OneMbps,
+            preferred_phy: Phy::AUTO,
+            current_phy: Phy::ONE_MBPS,
             disconnection_reason: 0,
             connection_based_subs: vec![],
         }
@@ -64,6 +66,8 @@ pub struct Peer {
 
     pub on_connect: Publisher<Self, ConnectionEvent>,
     pub on_disconnect: Publisher<Self, DisconnectionEvent>,
+    pub on_phy_updated: Publisher<Self, PhyUpdateEvent>,
+    pub on_data_length_updated: Publisher<Self, DataLengthUpdateEvent>,
 }
 
 impl Peer {
@@ -82,9 +86,16 @@ impl Peer {
 
             on_connect: Publisher::new("On Connect"),
             on_disconnect: Publisher::new("On Disconnect"),
+            on_phy_updated: Publisher::new("On Phy Update"),
+            on_data_length_updated: Publisher::new("On Data Length Update"),
         });
 
         driver.events.disconnected.subscribe(peer.clone());
+
+        peer.subscribe_for_connection(peer.clone(), &driver.events.phy_update_request);
+        peer.subscribe_for_connection(peer.clone(), &driver.events.phy_update);
+        peer.subscribe_for_connection(peer.clone(), &driver.events.data_length_update_request);
+        peer.subscribe_for_connection(peer.clone(), &driver.events.data_length_update);
 
         return peer;
     }
@@ -142,5 +153,83 @@ impl Subscriber<NrfDriver, GapEventDisconnected> for Peer {
 
         // TODO: Unsubscribe from everything
         return None;
+    }
+}
+
+
+impl Subscriber<NrfDriver, GapEventPhyUpdateRequest> for Peer {
+    fn handle(self: Arc<Self>, sender: Arc<NrfDriver>, event: GapEventPhyUpdateRequest) -> Option<SubscriberAction> {
+        let (conn_handle, preferred_phy) = {
+            let state = self.state.lock().unwrap();
+            if state.conn_handle != event.conn_handle {
+                return None;
+            }
+
+            (state.conn_handle, state.preferred_phy)
+        };
+
+        debug!("Peer-preferred phy - rx:{:?}, tx:{:?}, ours - {:?}",
+            event.peer_preferred_phys.rx_phys,
+            event.peer_preferred_phys.tx_phys,
+            preferred_phy,
+        );
+
+        sender.ble_gap_phy_update(conn_handle, preferred_phy, preferred_phy).unwrap();
+
+        return None
+    }
+}
+
+impl Subscriber<NrfDriver, GapEventPhyUpdate> for Peer {
+    fn handle(self: Arc<Self>, _sender: Arc<NrfDriver>, event: GapEventPhyUpdate) -> Option<SubscriberAction> {
+        {
+            let mut state = self.state.lock().unwrap();
+            if state.conn_handle != event.conn_handle {
+                return None;
+            }
+            state.current_phy = event.tx_phy;
+        }
+
+        self.on_phy_updated.dispatch(self.clone(),
+                                     PhyUpdateEvent {
+                                         tx_phy: event.tx_phy,
+                                         rx_phy: event.rx_phy
+                                     });
+        return None
+    }
+}
+
+impl Subscriber<NrfDriver, GapEventDataLengthUpdateRequest> for Peer {
+    fn handle(self: Arc<Self>, sender: Arc<NrfDriver>, event: GapEventDataLengthUpdateRequest) -> Option<SubscriberAction> {
+        let conn_handle = {
+            self.state.lock().unwrap().conn_handle
+        };
+
+        if conn_handle == event.conn_handle {
+            sender.ble_gap_data_length_update(conn_handle, None).unwrap();
+        }
+
+        None
+    }
+}
+
+impl Subscriber<NrfDriver, GapEventDataLengthUpdate> for Peer {
+    fn handle(self: Arc<Self>, sender: Arc<NrfDriver>, event: GapEventDataLengthUpdate) -> Option<SubscriberAction> {
+        let conn_handle = {
+            self.state.lock().unwrap().conn_handle
+        };
+
+        if conn_handle == event.conn_handle {
+            let params = DataLengthUpdateEvent {
+                tx_bytes: event.effective_params.max_tx_octets,
+                rx_bytes: event.effective_params.max_rx_octets,
+                tx_time_us: event.effective_params.max_tx_time_us,
+                rx_time_us: event.effective_params.max_rx_time_us
+            };
+
+            self.on_data_length_updated.dispatch(self.clone(), params);
+        }
+
+        None
     }
 }

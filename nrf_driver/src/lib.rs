@@ -6,6 +6,8 @@ extern crate lazy_static;
 extern crate log;
 #[macro_use]
 extern crate num_derive;
+#[macro_use]
+extern crate bitflags;
 
 use std::sync::Mutex;
 
