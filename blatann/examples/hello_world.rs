@@ -2,6 +2,7 @@
 extern crate log;
 
 use std::sync::Arc;
+use std::thread::sleep;
 use std::time::Duration;
 
 use blatann_event::{Subscribable, Subscriber, SubscriberAction, Waitable};
@@ -13,7 +14,6 @@ use blatann::advertiser::{Advertiser, AdvType};
 use blatann::device::BleDevice;
 use blatann::events::{AdvertisingTimeoutEvent, ConnectionEvent};
 use blatann::peer::Peer;
-use std::thread::{Thread, sleep};
 
 fn configure_log() {
     env_logger::Builder::from_env(Env::default().default_filter_or("debug")).init();
@@ -47,6 +47,10 @@ fn main() {
     let result = waitable2.wait().unwrap();
     info!("Got Peer: {:?}", result.is_some());
     sleep(Duration::from_secs(10));
+    if let Some(peer) = result {
+        info!("Disconnecting...");
+        peer.disconnect().unwrap().wait().unwrap();
+    }
     info!("Done!")
 }
 

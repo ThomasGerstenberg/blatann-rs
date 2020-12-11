@@ -12,6 +12,7 @@ use crate::ffi;
 use crate::gap::types::*;
 use crate::manager::event_handler;
 use crate::gap::enums::BleGapPhy;
+use crate::common::enums::BleHciStatus;
 
 #[allow(dead_code)]
 pub struct NrfDriver {
@@ -99,6 +100,15 @@ impl NrfDriver {
         let err = unsafe {
             let adapter = self.adapter.lock().unwrap();
             ffi::sd_ble_user_mem_reply(*adapter, conn_handle, null())
+        };
+
+        NrfError::make_result(err)
+    }
+
+    pub fn ble_gap_disconnect(&self, conn_handle: ConnHandle) -> NrfResult<()> {
+        let err = unsafe {
+            let adapter = self.adapter.lock().unwrap();
+            ffi::sd_ble_gap_disconnect(*adapter, conn_handle, BleHciStatus::RemoteUserTerminatedConnection as u8)
         };
 
         NrfError::make_result(err)

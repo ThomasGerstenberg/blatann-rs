@@ -1,7 +1,7 @@
 use crate::ffi;
 
 #[repr(u8)]
-#[derive(FromPrimitive, Copy, Clone, Debug)]
+#[derive(FromPrimitive, ToPrimitive, Copy, Clone, Debug)]
 pub enum BleHciStatus {
     Success = ffi::BLE_HCI_STATUS_CODE_SUCCESS as u8,
     UnknownBtleCommand = ffi::BLE_HCI_STATUS_CODE_UNKNOWN_BTLE_COMMAND as u8,
@@ -36,7 +36,7 @@ pub enum BleHciStatus {
 
 
 #[repr(u8)]
-#[derive(FromPrimitive, Copy, Clone, Debug)]
+#[derive(FromPrimitive, ToPrimitive, Copy, Clone, Debug)]
 pub enum BleMemType {
     Invalid = ffi::BLE_USER_MEM_TYPE_INVALID as u8,
     GattsQueuedWrites = ffi::BLE_USER_MEM_TYPE_GATTS_QUEUED_WRITES as u8,

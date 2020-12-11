@@ -23,6 +23,15 @@ impl BleEventId {
     }
 }
 
+impl Into<u16> for BleEventId {
+    fn into(self) -> u16 {
+        match self {
+            BleEventId::Common(x) => x as u16,
+            BleEventId::Gap(x) => x as u16
+        }
+    }
+}
+
 
 #[repr(u16)]
 #[derive(FromPrimitive, ToPrimitive, Copy, Clone, Debug)]
@@ -153,16 +162,6 @@ impl BleEvent {
         }
     }
 }
-
-impl Into<u16> for BleEventId {
-    fn into(self) -> u16 {
-        match self {
-            BleEventId::Common(x) => ToPrimitive::to_u16(&x),
-            BleEventId::Gap(x) => ToPrimitive::to_u16(&x)
-        }.unwrap()
-    }
-}
-
 
 #[derive(Copy, Clone, Debug)]
 pub enum BleEventData {

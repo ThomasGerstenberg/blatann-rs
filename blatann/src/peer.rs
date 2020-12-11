@@ -1,19 +1,20 @@
 use std::sync::{Arc, Mutex};
 
-use blatann_event::{Publisher, Subscribable, Subscriber, SubscriberAction};
+use blatann_event::{EventWaitable, Publisher, Subscribable, Subscriber, SubscriberAction};
 use uuid::Uuid;
 
-use nrf_driver::ble_event::{BleEventId, BleEventDataType};
+use nrf_driver::ble_event::{BleEventDataType, BleEventId};
 use nrf_driver::common::consts::CONN_HANDLE_INVALID;
 use nrf_driver::common::types::ConnHandle;
 use nrf_driver::driver::NrfDriver;
 use nrf_driver::driver_events::NrfEventPublisher;
+use nrf_driver::error::NrfResult;
 use nrf_driver::gap::enums::{BleGapPhy, BleGapRole};
-use nrf_driver::gap::events::{GapEventDisconnected, GapEventPhyUpdate, GapEventPhyUpdateRequest, GapEventDataLengthUpdateRequest, GapEventDataLengthUpdate};
+use nrf_driver::gap::events::{GapEventDataLengthUpdate, GapEventDataLengthUpdateRequest, GapEventDisconnected, GapEventPhyUpdate, GapEventPhyUpdateRequest};
 use nrf_driver::gap::types::{BleGapAddress, BleGapConnParams};
 
-use crate::events::*;
 use crate::consts::MTU_SIZE_DEFAULT;
+use crate::events::*;
 
 pub type PeerRole = BleGapRole;
 pub type Phy = BleGapPhy;
@@ -93,6 +94,16 @@ impl Peer {
         driver.events.disconnected.subscribe(peer.clone());
 
         return peer;
+    }
+
+    pub fn disconnect(self: &Arc<Self>) -> NrfResult<Arc<EventWaitable<Self, DisconnectionEvent>>> {
+        let conn_handle = {
+            self.state.lock().unwrap().conn_handle
+        };
+
+        self.driver.ble_gap_disconnect(conn_handle).and_then(|_| {
+            Ok(EventWaitable::new(&self.on_disconnect))
+        })
     }
 
     pub(crate) fn peer_connected(self: &Arc<Self>, conn_handle: ConnHandle, address: &BleGapAddress, conn_params: &BleGapConnParams) {
