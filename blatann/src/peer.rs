@@ -3,7 +3,7 @@ use std::sync::{Arc, Mutex};
 use blatann_event::{Publisher, Subscribable, Subscriber, SubscriberAction};
 use uuid::Uuid;
 
-use nrf_driver::ble_event::BleEventId;
+use nrf_driver::ble_event::{BleEventId, BleEventDataType};
 use nrf_driver::common::consts::CONN_HANDLE_INVALID;
 use nrf_driver::common::types::ConnHandle;
 use nrf_driver::driver::NrfDriver;
@@ -92,11 +92,6 @@ impl Peer {
 
         driver.events.disconnected.subscribe(peer.clone());
 
-        peer.subscribe_for_connection(peer.clone(), &driver.events.phy_update_request);
-        peer.subscribe_for_connection(peer.clone(), &driver.events.phy_update);
-        peer.subscribe_for_connection(peer.clone(), &driver.events.data_length_update_request);
-        peer.subscribe_for_connection(peer.clone(), &driver.events.data_length_update);
-
         return peer;
     }
 
@@ -117,10 +112,15 @@ impl Peer {
             state.connection_based_subs.clear()
         }
 
+        self.subscribe_for_connection(self.clone(), &self.driver.events.phy_update_request);
+        self.subscribe_for_connection(self.clone(), &self.driver.events.phy_update);
+        self.subscribe_for_connection(self.clone(), &self.driver.events.data_length_update_request);
+        self.subscribe_for_connection(self.clone(), &self.driver.events.data_length_update);
+
         self.on_connect.dispatch(self.clone(), ConnectionEvent {})
     }
 
-    pub(crate) fn subscribe_for_connection<S: 'static, E: Clone>(self: &Arc<Self>, subscriber: Arc<S>, event: &NrfEventPublisher<E>)
+    pub(crate) fn subscribe_for_connection<S: 'static, E: BleEventDataType>(self: &Arc<Self>, subscriber: Arc<S>, event: &NrfEventPublisher<E>)
         where S: Subscriber<NrfDriver, E> {
         let event_id = event.id();
         let subscription_id = event.subscribe(subscriber);

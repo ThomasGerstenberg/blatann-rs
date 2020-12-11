@@ -28,6 +28,14 @@ impl<TEvent: BleEventDataType> NrfEventPublisher<TEvent> {
         }
     }
 
+    pub fn id(&self) -> BleEventId {
+        self.id
+    }
+
+    fn name(&self) -> &str {
+        self.publisher.name()
+    }
+
     fn dispatch(&self, sender: Arc<NrfDriver>, event: TEvent) {
         self.publisher.dispatch(sender, event)
     }
