@@ -1,8 +1,8 @@
 use nrf_driver::gap::enums::{BleGapRole, BleGapTimeoutSource};
 use crate::peer::Peer;
-use std::sync::{Arc, mpsc};
+use std::sync::{Arc, mpsc, Mutex};
 use nrf_driver::driver::NrfDriver;
-use blatann_event::{Subscriber, SubscriberAction, Waitable, Subscribable, Unsubscribable};
+use blatann_event::{Subscriber, SubscriberAction, Waitable, Subscribable, Unsubscribable, AsyncEventHandler};
 use nrf_driver::gap::events::{GapEventTimeout, GapEventConnected};
 use std::sync::mpsc::{RecvError, RecvTimeoutError};
 use bitflags::_core::time::Duration;
@@ -15,7 +15,8 @@ pub struct ConnectionWaitable {
     sender: mpsc::Sender<bool>,
     receiver: mpsc::Receiver<bool>,
     timeout_sub_id: RefCell<Option<Uuid>>,
-    connect_sub_id: RefCell<Option<Uuid>>
+    connect_sub_id: RefCell<Option<Uuid>>,
+    callbacks: Mutex<Vec<Box<dyn FnOnce(Option<Arc<Peer>>)>>>
 }
 
 
@@ -29,7 +30,9 @@ impl ConnectionWaitable {
             receiver,
             timeout_sub_id: RefCell::new(None),
             connect_sub_id: RefCell::new(None),
+            callbacks: Mutex::new(vec![])
         });
+
         let connected_uuid = driver.events.connected.subscribe(waitable.clone());
         let timeout_uuid = driver.events.gap_timeout.subscribe(waitable.clone());
         waitable.timeout_sub_id.replace(Some(timeout_uuid));
@@ -47,7 +50,16 @@ impl ConnectionWaitable {
         if let Some(id) = *sub_id {
             driver.events.connected.unsubscribe(id)
         }
-        self.sender.send(success).unwrap()
+        self.sender.send(success).unwrap();
+        let mut callbacks = self.callbacks.lock().unwrap();
+
+        for cb in callbacks.drain(..) {
+            if success {
+                (cb)(Some(self.peer.clone()))
+            } else {
+                (cb)(None)
+            }
+        }
     }
 }
 
@@ -71,6 +83,14 @@ impl Waitable<Option<Arc<Peer>>> for ConnectionWaitable {
                 Ok(None)
             }
         })
+    }
+}
+
+impl AsyncEventHandler<Option<Arc<Peer>>> for ConnectionWaitable {
+    fn then<F>(&self, f: F)
+        where F: 'static + FnOnce(Option<Arc<Peer>>){
+        let mut callbacks = self.callbacks.lock().unwrap();
+        callbacks.push(Box::new(f))
     }
 }
 

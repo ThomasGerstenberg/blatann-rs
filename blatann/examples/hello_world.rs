@@ -5,7 +5,7 @@ use std::sync::Arc;
 use std::thread::sleep;
 use std::time::Duration;
 
-use blatann_event::{Subscribable, Subscriber, SubscriberAction, Waitable};
+use blatann_event::{Subscribable, Subscriber, SubscriberAction, Waitable, AsyncEventHandler};
 use env_logger;
 use env_logger::Env;
 
@@ -22,50 +22,50 @@ fn configure_log() {
 
 fn main() {
     configure_log();
-    let device_com11 = BleDevice::new("COM11".into(), 1_000_000);
-    let device_com13 = BleDevice::new("COM13".into(), 1_000_000);
+    let device = BleDevice::new("COM13".into(), 1_000_000);
 
-    device_com11.open().unwrap();
-    device_com13.open().unwrap();
+    device.open().unwrap();
 
     let handler = Arc::new(EventDummy {});
-    device_com11.advertiser.on_timeout.subscribe(handler.clone());
-    device_com11.central.on_connect.subscribe(handler.clone());
-    info!("Started advertising!");
+    device.advertiser.on_timeout.subscribe(handler);
+
     let mut adv_data = AdvData::default();
     adv_data.add_entry(AdvDataType::CompleteLocalName as u8, b"Blatann-rs!!");
-    device_com11.advertiser.set_params(100_f64, 5, AdvType::NonconnectableUndirected, true);
-    device_com13.advertiser.set_params(50_f64, 50, AdvType::ConnectableUndirected, false);
-    device_com13.advertiser.set_data(Some(&adv_data), None).unwrap();
-    // device_com13.advertiser.set_data(Some(&adv_data), None).unwrap();
+    device.advertiser.set_params(50_f64, 50, AdvType::ConnectableUndirected, false);
+    device.advertiser.set_data(Some(&adv_data), None).unwrap();
 
-    let waitable1 = device_com11.advertiser.start().unwrap();
-    let waitable2 = device_com13.advertiser.start().unwrap();
-    info!("Waiting for COM11");
-    waitable1.wait().unwrap();
-    info!("Waiting for COM13");
-    let result = waitable2.wait().unwrap();
+    info!("Started advertising!");
+    let connect_waitable = device.advertiser.start().unwrap();
+
+    connect_waitable.then(|peer| {
+       if let Some(_) = peer {
+           info!("then(): got peer!");
+       }
+    });
+
+    let result = connect_waitable.wait().unwrap();
     info!("Got Peer: {:?}", result.is_some());
     sleep(Duration::from_secs(10));
     if let Some(peer) = result {
         info!("Disconnecting...");
-        peer.disconnect().unwrap().wait().unwrap();
+        let (_, event) = peer.disconnect().unwrap().wait().unwrap();
+        info!("{:?}", event);
     }
     info!("Done!")
 }
 
 struct EventDummy {}
 
-impl Subscriber<Advertiser, AdvertisingTimeoutEvent> for EventDummy {
-    fn handle(self: Arc<Self>, _sender: Arc<Advertiser>, _event: AdvertisingTimeoutEvent) -> Option<SubscriberAction> {
-        info!("Got timeout event!");
-        return None;
-    }
-}
-
 impl Subscriber<Peer, ConnectionEvent> for EventDummy {
     fn handle(self: Arc<Self>, _sender: Arc<Peer>, _event: ConnectionEvent) -> Option<SubscriberAction> {
         info!("Peer connected!");
         return None;
+    }
+}
+
+impl Subscriber<Advertiser, AdvertisingTimeoutEvent> for EventDummy {
+    fn handle(self: Arc<Self>, sender: Arc<Advertiser>, event: AdvertisingTimeoutEvent) -> Option<SubscriberAction> {
+        info!("Got advertising timeout!");
+        return None
     }
 }

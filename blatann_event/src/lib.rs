@@ -31,11 +31,13 @@ pub trait Unsubscribable {
     fn unsubscribe(&self, id: Uuid);
 }
 
-#[derive(Debug, Copy, Clone)]
-pub struct EventArgs<S, E: Clone>(S, E);
-
+pub type EventArgs<S, E> = (S, E);
 
 pub trait Waitable<T> {
     fn wait_timeout(&self, timeout: Duration) -> Result<T, RecvTimeoutError>;
     fn wait(&self) -> Result<T, RecvError>;
+}
+
+pub trait AsyncEventHandler<T>{
+    fn then<F>(&self, f: F) where F: 'static + FnOnce(T);
 }
