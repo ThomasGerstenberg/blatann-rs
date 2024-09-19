@@ -8,7 +8,7 @@ const SD_API_VERSION: usize = 5;
 
 fn main() {
     let manifest_dir = env::var("CARGO_MANIFEST_DIR").unwrap();
-    let version_underscore = NRF_DRIVER_VERSION.clone().replace(".", "_");
+    let version_underscore = NRF_DRIVER_VERSION.replace(".", "_");
     println!("cargo:rustc-link-search=native={}/external/nrf-ble-driver/nrf-ble-driver-{}-win_x86_64/lib", manifest_dir, NRF_DRIVER_VERSION);
     println!("cargo:rustc-link-lib=nrf-ble-driver-sd_api_v{}-mt-static-{}", SD_API_VERSION, version_underscore);
     let bindings = bindgen::Builder::default()

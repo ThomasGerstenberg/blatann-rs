@@ -1,0 +1,7 @@
+[workspace]
+
+members = [
+    "blatann",
+    "blatann_event",
+    "nrf_driver"
+]

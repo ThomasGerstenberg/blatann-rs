@@ -17,18 +17,16 @@ struct State {
 }
 
 impl State {
-    fn new(conn_params: &BleGapConnParams) -> Self {
+    fn new(conn_params: BleGapConnParams) -> Self {
         Self {
-            default_conn_params: conn_params.clone()
+            default_conn_params: conn_params
         }
     }
 }
 
 impl Default for State {
     fn default() -> Self {
-        Self {
-            default_conn_params: BleGapConnParams::new(15_f64, 30_f64, 4000_f64, 0)
-        }
+        Self::new(BleGapConnParams::new(15_f64, 30_f64, 4000_f64, 0))
     }
 }
 

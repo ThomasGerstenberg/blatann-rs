@@ -77,6 +77,7 @@ pub enum BleGapRole {
 }
 
 bitflags! {
+    #[derive(Copy, Clone, Debug)]
     pub struct BleGapPhy: u8 {
         const AUTO = ffi::BLE_GAP_PHY_AUTO as u8;
         const ONE_MBPS = ffi::BLE_GAP_PHY_1MBPS as u8;

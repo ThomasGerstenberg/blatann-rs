@@ -26,7 +26,8 @@ pub mod driver_events;
 #[allow(non_camel_case_types)]
 #[allow(non_snake_case)]
 #[allow(dead_code)]
-mod ffi; // Auto-genned C bindings
+mod ffi;
+// Auto-genned C bindings
 
 lazy_static! {
     pub static ref DRIVER_MANAGER: Mutex<NrfDriverManager> = Mutex::new(NrfDriverManager::new());

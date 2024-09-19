@@ -1,3 +1,4 @@
+use std::cell::RefCell;
 use nrf_driver::gap::enums::{BleGapRole, BleGapTimeoutSource};
 use crate::peer::Peer;
 use std::sync::{Arc, mpsc, Mutex};
@@ -5,8 +6,7 @@ use nrf_driver::driver::NrfDriver;
 use blatann_event::{Subscriber, SubscriberAction, Waitable, Subscribable, Unsubscribable, AsyncEventHandler};
 use nrf_driver::gap::events::{GapEventTimeout, GapEventConnected};
 use std::sync::mpsc::{RecvError, RecvTimeoutError};
-use bitflags::_core::time::Duration;
-use bitflags::_core::cell::RefCell;
+use std::time::Duration;
 use uuid::Uuid;
 
 pub struct ConnectionWaitable {

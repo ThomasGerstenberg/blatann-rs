@@ -59,6 +59,7 @@ impl Into<ffi::ble_gap_addr_t> for &BleGapAddress {
         ffi::ble_gap_addr_t {
             _bitfield_1: ffi::ble_gap_addr_t::new_bitfield_1(0, self.address_type as u8),
             addr,
+            _bitfield_align_1: []
         }
     }
 }
@@ -95,7 +96,8 @@ impl Into<ffi::ble_gap_adv_params_t> for &BleGapAdvParams {
             interval: self.interval.to_units(UNIT_0_625_MS) as u16,
             timeout: self.timeout_s,
             channel_mask: ffi::ble_gap_adv_ch_mask_t {
-                _bitfield_1: ffi::ble_gap_adv_ch_mask_t::new_bitfield_1(0, 0, 0)
+                _bitfield_1: ffi::ble_gap_adv_ch_mask_t::new_bitfield_1(0, 0, 0),
+                _bitfield_align_1: []
             },
         }
     }

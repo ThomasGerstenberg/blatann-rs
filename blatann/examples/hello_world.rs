@@ -64,7 +64,7 @@ impl Subscriber<Peer, ConnectionEvent> for EventDummy {
 }
 
 impl Subscriber<Advertiser, AdvertisingTimeoutEvent> for EventDummy {
-    fn handle(self: Arc<Self>, sender: Arc<Advertiser>, event: AdvertisingTimeoutEvent) -> Option<SubscriberAction> {
+    fn handle(self: Arc<Self>, _sender: Arc<Advertiser>, _event: AdvertisingTimeoutEvent) -> Option<SubscriberAction> {
         info!("Got advertising timeout!");
         return None
     }

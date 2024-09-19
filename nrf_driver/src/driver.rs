@@ -118,6 +118,7 @@ impl NrfDriver {
         let mut addr = ffi::ble_gap_addr_t {
             _bitfield_1: ffi::ble_gap_addr_t::new_bitfield_1(0, 0),
             addr: [0; 6],
+            _bitfield_align_1: []
         };
 
         let err = unsafe {

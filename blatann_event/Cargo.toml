@@ -8,4 +8,4 @@ edition = "2018"
 
 [dependencies]
 log = "0.4.11"
-uuid = { version = "0.8.1", features = ["v4"] }
+uuid = { version = "1.10.0", features = ["v4"] }
