@@ -9,7 +9,6 @@ pub enum BleGapAddressType {
     PrivateNonresolvable = ffi::BLE_GAP_ADDR_TYPE_RANDOM_PRIVATE_NON_RESOLVABLE as u8,
 }
 
-
 #[repr(u8)]
 #[derive(FromPrimitive, Copy, Clone, Debug)]
 pub enum BleGapAdvertisingType {
@@ -20,7 +19,6 @@ pub enum BleGapAdvertisingType {
     ScanResponse = 0xFF,
 }
 
-
 #[repr(u8)]
 #[derive(FromPrimitive, Copy, Clone, Debug)]
 pub enum BleGapTimeoutSource {
@@ -29,7 +27,6 @@ pub enum BleGapTimeoutSource {
     Conn = ffi::BLE_GAP_TIMEOUT_SRC_CONN as u8,
     AuthPayload = ffi::BLE_GAP_TIMEOUT_SRC_AUTH_PAYLOAD as u8,
 }
-
 
 #[repr(u8)]
 #[derive(FromPrimitive, Copy, Clone, Debug)]

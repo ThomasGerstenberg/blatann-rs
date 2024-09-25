@@ -1,18 +1,19 @@
+use std::ffi::CString;
 use std::ptr::{null, null_mut};
-use std::sync::{Arc, Mutex};
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, Mutex};
 
 use uuid::Uuid;
 
 use crate::ble_event::{BleEvent, BleEventId};
+use crate::common::enums::BleHciStatus;
 use crate::common::types::ConnHandle;
 use crate::driver_events::NrfDriverEvents;
 use crate::error::{NrfError, NrfResult};
 use crate::ffi;
-use crate::gap::types::*;
-use crate::manager::event_handler;
 use crate::gap::enums::BleGapPhy;
-use crate::common::enums::BleHciStatus;
+use crate::gap::types::*;
+use crate::manager::{event_handler, log_handler, status_handler};
 
 #[allow(dead_code)]
 pub struct NrfDriver {
@@ -26,12 +27,12 @@ pub struct NrfDriver {
     is_open: AtomicBool,
 }
 
-
 impl NrfDriver {
     pub(crate) fn new(port: String, baud: u32, log_driver_comms: bool) -> Self {
         unsafe {
+            let port_cstr = CString::new(port.clone()).unwrap();
             let phy_layer = ffi::sd_rpc_physical_layer_create_uart(
-                port.as_ptr() as *const _,
+                port_cstr.as_ptr(),
                 baud,
                 ffi::sd_rpc_flow_control_t_SD_RPC_FLOW_CONTROL_NONE,
                 ffi::sd_rpc_parity_t_SD_RPC_PARITY_NONE,
@@ -58,10 +59,21 @@ impl NrfDriver {
             return Ok(());
         }
 
+        let status_handler: ffi::sd_rpc_status_handler_t = if { self.log_driver_comms } {
+            Some(status_handler)
+        } else {
+            None
+        };
+        let log_handler: ffi::sd_rpc_log_handler_t = if { self.log_driver_comms } {
+            Some(log_handler)
+        } else {
+            None
+        };
+
         info!("Opening port '{}'", self.port);
         let err = unsafe {
             let adapter = self.adapter.lock().unwrap();
-            ffi::sd_rpc_open(*adapter, None, Some(event_handler), None)
+            ffi::sd_rpc_open(*adapter, status_handler, Some(event_handler), log_handler)
         };
 
         if err == ffi::NRF_SUCCESS {
@@ -108,7 +120,11 @@ impl NrfDriver {
     pub fn ble_gap_disconnect(&self, conn_handle: ConnHandle) -> NrfResult<()> {
         let err = unsafe {
             let adapter = self.adapter.lock().unwrap();
-            ffi::sd_ble_gap_disconnect(*adapter, conn_handle, BleHciStatus::RemoteUserTerminatedConnection as u8)
+            ffi::sd_ble_gap_disconnect(
+                *adapter,
+                conn_handle,
+                BleHciStatus::RemoteUserTerminatedConnection as u8,
+            )
         };
 
         NrfError::make_result(err)
@@ -118,7 +134,7 @@ impl NrfDriver {
         let mut addr = ffi::ble_gap_addr_t {
             _bitfield_1: ffi::ble_gap_addr_t::new_bitfield_1(0, 0),
             addr: [0; 6],
-            _bitfield_align_1: []
+            _bitfield_align_1: [],
         };
 
         let err = unsafe {
@@ -140,11 +156,15 @@ impl NrfDriver {
         NrfError::make_result(err)
     }
 
-    pub fn ble_gap_adv_data_set(&self, adv_data: &Option<Vec<u8>>, scan_response_data: &Option<Vec<u8>>) -> NrfResult<()> {
+    pub fn ble_gap_adv_data_set(
+        &self,
+        adv_data: &Option<Vec<u8>>,
+        scan_response_data: &Option<Vec<u8>>,
+    ) -> NrfResult<()> {
         let err = unsafe {
             let (adv_ptr, adv_size) = match adv_data {
                 None => (null(), 0),
-                Some(d) => (d.as_ptr(), d.len())
+                Some(d) => (d.as_ptr(), d.len()),
             };
             let (scan_ptr, scan_size) = match scan_response_data {
                 None => (null(), 0),
@@ -152,9 +172,12 @@ impl NrfDriver {
             };
 
             let adapter = self.adapter.lock().unwrap();
-            ffi::sd_ble_gap_adv_data_set(*adapter,
-                                         adv_ptr, adv_size as u8,
-                                         scan_ptr, scan_size as u8,
+            ffi::sd_ble_gap_adv_data_set(
+                *adapter,
+                adv_ptr,
+                adv_size as u8,
+                scan_ptr,
+                scan_size as u8,
             )
         };
 
@@ -181,7 +204,12 @@ impl NrfDriver {
         NrfError::make_result(err)
     }
 
-    pub fn ble_gap_phy_update(&self, conn_handle: ConnHandle, tx_phy: BleGapPhy, rx_phy: BleGapPhy) -> NrfResult<()> {
+    pub fn ble_gap_phy_update(
+        &self,
+        conn_handle: ConnHandle,
+        tx_phy: BleGapPhy,
+        rx_phy: BleGapPhy,
+    ) -> NrfResult<()> {
         let phys = BleGapPhys::new(tx_phy, rx_phy).into();
         let err = unsafe {
             let adapter = self.adapter.lock().unwrap();
@@ -191,10 +219,14 @@ impl NrfDriver {
         NrfError::make_result(err)
     }
 
-    pub fn ble_gap_data_length_update(&self, conn_handle: ConnHandle, params: Option<BleGapDataLengthParams>) -> NrfResult<()> {
+    pub fn ble_gap_data_length_update(
+        &self,
+        conn_handle: ConnHandle,
+        params: Option<BleGapDataLengthParams>,
+    ) -> NrfResult<()> {
         let params = match params {
             None => null(),
-            Some(x) => &x.into()
+            Some(x) => &x.into(),
         };
 
         let err = unsafe {
@@ -212,16 +244,13 @@ impl NrfDriver {
     pub(crate) fn process_event(self: Arc<Self>, ble_event: BleEvent) {
         debug!("[{}] Event: {:?}", self.port, ble_event);
         match ble_event.data {
-            Some(e) => {
-                self.events.dispatch(self.clone(), e)
-            }
+            Some(e) => self.events.dispatch(self.clone(), e),
             None => {
                 warn!("Unable to decode event, id {}", ble_event.id);
             }
         }
     }
 }
-
 
 impl Drop for NrfDriver {
     fn drop(&mut self) {
