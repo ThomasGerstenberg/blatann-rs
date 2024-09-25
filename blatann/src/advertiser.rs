@@ -1,6 +1,5 @@
 use std::sync::{Arc, Mutex};
 
-use blatann_event::event_waitable::EventWaitable;
 use blatann_event::{Publisher, Subscribable, Subscriber, SubscriberAction};
 
 use nrf_driver::driver::NrfDriver;

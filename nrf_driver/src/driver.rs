@@ -59,12 +59,12 @@ impl NrfDriver {
             return Ok(());
         }
 
-        let status_handler: ffi::sd_rpc_status_handler_t = if { self.log_driver_comms } {
+        let status_handler: ffi::sd_rpc_status_handler_t = if self.log_driver_comms {
             Some(status_handler)
         } else {
             None
         };
-        let log_handler: ffi::sd_rpc_log_handler_t = if { self.log_driver_comms } {
+        let log_handler: ffi::sd_rpc_log_handler_t = if self.log_driver_comms {
             Some(log_handler)
         } else {
             None

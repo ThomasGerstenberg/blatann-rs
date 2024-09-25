@@ -7,7 +7,7 @@ extern crate bitflags;
 pub mod advertise_data;
 pub mod advertiser;
 pub mod connection_waitable;
-mod consts;
+pub mod consts;
 pub mod device;
 pub mod events;
 pub mod peer;
