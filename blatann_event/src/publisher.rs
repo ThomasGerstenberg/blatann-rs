@@ -21,11 +21,9 @@ impl<S, E: Clone> EventSubscription<S, E> {
         // Check if the handler is still a valid reference
         let action = match self.handler.upgrade() {
             // Valid, emit the event and return the action
-            Some(handler) => {
-                handler.handle(sender.clone(), event)
-            }
+            Some(handler) => handler.handle(sender.clone(), event),
             // Invalid, needs to be unsubscribed
-            None => Some(SubscriberAction::Unsubscribe)
+            None => Some(SubscriberAction::Unsubscribe),
         };
 
         if let Some(SubscriberAction::Unsubscribe) = action {
@@ -55,11 +53,10 @@ impl<S, E: Clone> Clone for EventSubscription<S, E> {
     }
 }
 
-
 pub struct Publisher<TSender, TEvent: Clone> {
     name: String,
     subscribers: Mutex<Vec<EventSubscription<TSender, TEvent>>>,
-    dispatch_lock: Mutex<()>
+    dispatch_lock: Mutex<()>,
 }
 
 impl<TSender, TEvent: Clone> Publisher<TSender, TEvent> {
@@ -98,7 +95,11 @@ impl<TSender, TEvent: Clone> Publisher<TSender, TEvent> {
         }
     }
 
-    fn subscribe_impl(&self, handler: Arc<dyn Subscriber<TSender, TEvent>>, mode: SubscriptionMode) -> Uuid {
+    fn subscribe_impl(
+        &self,
+        handler: Arc<dyn Subscriber<TSender, TEvent>>,
+        mode: SubscriptionMode,
+    ) -> Uuid {
         let id = Uuid::new_v4();
         let sub = EventSubscription {
             id: id.clone(),
@@ -124,12 +125,11 @@ impl<TSender, TEvent: Clone> Subscribable<TSender, TEvent> for Publisher<TSender
     fn subscribe_once(&self, handler: Arc<dyn Subscriber<TSender, TEvent>>) -> Uuid {
         return self.subscribe_impl(handler, SubscriptionMode::Once);
     }
-
 }
 
 impl<TSender, TEvent: Clone> Unsubscribable for Publisher<TSender, TEvent> {
     fn unsubscribe(&self, id: Uuid) {
         let mut subscribers = self.subscribers.lock().unwrap();
-        subscribers.retain(|s| { s.id != id });
+        subscribers.retain(|s| s.id != id);
     }
 }

@@ -5,15 +5,15 @@ use crate::ffi;
 
 use super::enums::*;
 use super::types::*;
+use crate::ble_event::{BleEventDataType, BleEventId, GapEventId};
 use crate::common::enums::BleHciStatus;
-use crate::ble_event::{GapEventId, BleEventDataType, BleEventId};
 
 #[derive(Copy, Clone, Debug)]
 pub struct GapEventConnected {
     pub conn_handle: ConnHandle,
     pub address: BleGapAddress,
     pub role: BleGapRole,
-    pub conn_params: BleGapConnParams
+    pub conn_params: BleGapConnParams,
 }
 
 impl GapEventConnected {
@@ -21,12 +21,15 @@ impl GapEventConnected {
         GapEventId::Connected as u16
     }
 
-    pub(crate) unsafe fn from_c(conn_handle: ConnHandle, val: *const ffi::ble_gap_evt_connected_t) -> Self {
+    pub(crate) unsafe fn from_c(
+        conn_handle: ConnHandle,
+        val: *const ffi::ble_gap_evt_connected_t,
+    ) -> Self {
         Self {
             conn_handle,
             address: (*val).peer_addr.into(),
             role: FromPrimitive::from_u8((*val).role).unwrap_or(BleGapRole::Invalid),
-            conn_params: (*val).conn_params.into()
+            conn_params: (*val).conn_params.into(),
         }
     }
 }
@@ -37,7 +40,6 @@ impl BleEventDataType for GapEventConnected {
     }
 }
 
-
 #[derive(Copy, Clone, Debug)]
 pub struct GapEventDisconnected {
     pub conn_handle: ConnHandle,
@@ -45,10 +47,13 @@ pub struct GapEventDisconnected {
 }
 
 impl GapEventDisconnected {
-    pub(crate) unsafe fn from_c(conn_handle: ConnHandle, val: *const ffi::ble_gap_evt_disconnected_t) -> Self {
+    pub(crate) unsafe fn from_c(
+        conn_handle: ConnHandle,
+        val: *const ffi::ble_gap_evt_disconnected_t,
+    ) -> Self {
         Self {
             conn_handle,
-            reason: FromPrimitive::from_u8((*val).reason).unwrap_or(BleHciStatus::InvalidHciCode)
+            reason: FromPrimitive::from_u8((*val).reason).unwrap_or(BleHciStatus::InvalidHciCode),
         }
     }
 }
@@ -66,7 +71,10 @@ pub struct GapEventTimeout {
 }
 
 impl GapEventTimeout {
-    pub(crate) unsafe fn from_c(conn_handle: ConnHandle, val: *const ffi::ble_gap_evt_timeout_t) -> Self {
+    pub(crate) unsafe fn from_c(
+        conn_handle: ConnHandle,
+        val: *const ffi::ble_gap_evt_timeout_t,
+    ) -> Self {
         Self {
             conn_handle,
             src: FromPrimitive::from_u8((*val).src).unwrap(),
@@ -80,7 +88,6 @@ impl BleEventDataType for GapEventTimeout {
     }
 }
 
-
 #[derive(Debug, Copy, Clone)]
 pub struct GapEventPhyUpdateRequest {
     pub conn_handle: ConnHandle,
@@ -88,10 +95,13 @@ pub struct GapEventPhyUpdateRequest {
 }
 
 impl GapEventPhyUpdateRequest {
-    pub(crate) unsafe fn from_c(conn_handle: ConnHandle, val: *const ffi::ble_gap_evt_phy_update_request_t) -> Self {
+    pub(crate) unsafe fn from_c(
+        conn_handle: ConnHandle,
+        val: *const ffi::ble_gap_evt_phy_update_request_t,
+    ) -> Self {
         Self {
             conn_handle,
-            peer_preferred_phys: (*val).peer_preferred_phys.into() //BleGapPhys::from(&(*val).peer_preferred_phys)
+            peer_preferred_phys: (*val).peer_preferred_phys.into(), //BleGapPhys::from(&(*val).peer_preferred_phys)
         }
     }
 }
@@ -102,7 +112,6 @@ impl BleEventDataType for GapEventPhyUpdateRequest {
     }
 }
 
-
 #[derive(Debug, Copy, Clone)]
 pub struct GapEventPhyUpdate {
     pub conn_handle: ConnHandle,
@@ -112,10 +121,14 @@ pub struct GapEventPhyUpdate {
 }
 
 impl GapEventPhyUpdate {
-    pub(crate) unsafe fn from_c(conn_handle: ConnHandle, val: *const ffi::ble_gap_evt_phy_update_t) -> Self {
+    pub(crate) unsafe fn from_c(
+        conn_handle: ConnHandle,
+        val: *const ffi::ble_gap_evt_phy_update_t,
+    ) -> Self {
         Self {
             conn_handle,
-            status: FromPrimitive::from_u8((*val).status).unwrap_or_else(|| BleHciStatus::InvalidHciCode),
+            status: FromPrimitive::from_u8((*val).status)
+                .unwrap_or_else(|| BleHciStatus::InvalidHciCode),
             tx_phy: BleGapPhy::from_bits_or_default((*val).tx_phy),
             rx_phy: BleGapPhy::from_bits_or_default((*val).rx_phy),
         }
@@ -135,7 +148,10 @@ pub struct GapEventDataLengthUpdateRequest {
 }
 
 impl GapEventDataLengthUpdateRequest {
-    pub(crate) unsafe fn from_c(conn_handle: ConnHandle, val: *const ffi::ble_gap_evt_data_length_update_request_t) -> Self {
+    pub(crate) unsafe fn from_c(
+        conn_handle: ConnHandle,
+        val: *const ffi::ble_gap_evt_data_length_update_request_t,
+    ) -> Self {
         Self {
             conn_handle,
             peer_params: (*val).peer_params.into(),
@@ -156,7 +172,10 @@ pub struct GapEventDataLengthUpdate {
 }
 
 impl GapEventDataLengthUpdate {
-    pub(crate) unsafe fn from_c(conn_handle: ConnHandle, val: *const ffi::ble_gap_evt_data_length_update_t) -> Self {
+    pub(crate) unsafe fn from_c(
+        conn_handle: ConnHandle,
+        val: *const ffi::ble_gap_evt_data_length_update_t,
+    ) -> Self {
         Self {
             conn_handle,
             effective_params: (*val).effective_params.into(),

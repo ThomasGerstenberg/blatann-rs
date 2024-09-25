@@ -1,14 +1,13 @@
-use std::sync::{Arc, mpsc, Mutex};
 use std::sync::mpsc::{RecvError, RecvTimeoutError};
+use std::sync::{mpsc, Arc, Mutex};
 use std::time::Duration;
 
-use crate::{EventArgs, Subscribable, Subscriber, SubscriberAction, Waitable, AsyncEventHandler};
-
+use crate::{AsyncEventHandler, EventArgs, Subscribable, Subscriber, SubscriberAction, Waitable};
 
 pub struct EventWaitable<S: 'static, E: Clone + 'static> {
     sender: mpsc::Sender<EventArgs<Arc<S>, E>>,
     receiver: mpsc::Receiver<EventArgs<Arc<S>, E>>,
-    callbacks: Mutex<Vec<Box<dyn FnOnce(EventArgs<Arc<S>, E>)>>>
+    callbacks: Mutex<Vec<Box<dyn FnOnce(EventArgs<Arc<S>, E>)>>>,
 }
 
 impl<S: 'static, E: Clone + 'static> EventWaitable<S, E> {
@@ -36,11 +35,13 @@ impl<S: 'static, E: Clone + 'static> Waitable<EventArgs<Arc<S>, E>> for EventWai
     }
 }
 
-impl<S: 'static, E: Clone + 'static> AsyncEventHandler<EventArgs<Arc<S>, E>> for EventWaitable<S, E> {
-
+impl<S: 'static, E: Clone + 'static> AsyncEventHandler<EventArgs<Arc<S>, E>>
+    for EventWaitable<S, E>
+{
     fn then<F>(&self, f: F)
-        where F: 'static + FnOnce(EventArgs<Arc<S>, E>) {
-
+    where
+        F: 'static + FnOnce(EventArgs<Arc<S>, E>),
+    {
         let mut callbacks = self.callbacks.lock().unwrap();
         callbacks.push(Box::new(f));
     }
@@ -48,9 +49,11 @@ impl<S: 'static, E: Clone + 'static> AsyncEventHandler<EventArgs<Arc<S>, E>> for
 
 impl<S: 'static, E: Clone + 'static> Subscriber<S, E> for EventWaitable<S, E> {
     fn handle(self: Arc<Self>, sender: Arc<S>, event: E) -> Option<SubscriberAction> {
-        self.sender.send((sender.clone(), event.clone())).unwrap_or_else(|e| {
-            error!("Failed to send waitable: {:?}", e);
-        });
+        self.sender
+            .send((sender.clone(), event.clone()))
+            .unwrap_or_else(|e| {
+                error!("Failed to send waitable: {:?}", e);
+            });
         // Handled the event, unsubscribe
         let mut callbacks = self.callbacks.lock().unwrap();
         for cb in callbacks.drain(..) {
@@ -60,5 +63,3 @@ impl<S: 'static, E: Clone + 'static> Subscriber<S, E> for EventWaitable<S, E> {
         return Some(SubscriberAction::Unsubscribe);
     }
 }
-
-

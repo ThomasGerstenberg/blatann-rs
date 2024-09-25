@@ -1,25 +1,25 @@
 use std::sync::{Arc, Mutex};
 
 use nrf_driver::driver::NrfDriver;
-use nrf_driver::DRIVER_MANAGER;
 use nrf_driver::error::NrfError;
+use nrf_driver::DRIVER_MANAGER;
 
 use crate::advertiser::Advertiser;
-use blatann_event::{Subscriber, SubscriberAction, Subscribable};
-use nrf_driver::common::events::CommonEventMemRequest;
-use nrf_driver::gap::events::{GapEventConnected, GapEventDisconnected};
 use crate::peer::{Peer, PeerRole};
-use nrf_driver::gap::types::BleGapConnParams;
+use blatann_event::{Subscribable, Subscriber, SubscriberAction};
+use nrf_driver::common::events::CommonEventMemRequest;
 use nrf_driver::gap::enums::BleGapRole;
+use nrf_driver::gap::events::{GapEventConnected, GapEventDisconnected};
+use nrf_driver::gap::types::BleGapConnParams;
 
 struct State {
-    default_conn_params: BleGapConnParams
+    default_conn_params: BleGapConnParams,
 }
 
 impl State {
     fn new(conn_params: BleGapConnParams) -> Self {
         Self {
-            default_conn_params: conn_params
+            default_conn_params: conn_params,
         }
     }
 }
@@ -38,12 +38,11 @@ pub struct BleDevice {
     pub central: Arc<Peer>,
 }
 
-
 impl BleDevice {
     pub fn new(port: String, baud: u32) -> Arc<Self> {
         let driver = {
             let mut manager = DRIVER_MANAGER.lock().unwrap();
-            manager.create(port.clone(), baud, false)
+            manager.create(port.clone(), baud, true)
         };
         let state: State = Default::default();
         let central = Peer::new(&driver, PeerRole::Peripheral, &state.default_conn_params);
@@ -75,28 +74,42 @@ impl Drop for BleDevice {
     }
 }
 
-
 impl Subscriber<NrfDriver, CommonEventMemRequest> for BleDevice {
-    fn handle(self: Arc<Self>, sender: Arc<NrfDriver>, event: CommonEventMemRequest) -> Option<SubscriberAction> {
-        sender.ble_user_mem_reply(event.conn_handle).unwrap_or_else(|e| {
-            error!("ble_user_mem_reply got error {:?}", e);
-        });
+    fn handle(
+        self: Arc<Self>,
+        sender: Arc<NrfDriver>,
+        event: CommonEventMemRequest,
+    ) -> Option<SubscriberAction> {
+        sender
+            .ble_user_mem_reply(event.conn_handle)
+            .unwrap_or_else(|e| {
+                error!("ble_user_mem_reply got error {:?}", e);
+            });
         return None;
     }
 }
 
 impl Subscriber<NrfDriver, GapEventConnected> for BleDevice {
-    fn handle(self: Arc<Self>, _sender: Arc<NrfDriver>, event: GapEventConnected) -> Option<SubscriberAction> {
+    fn handle(
+        self: Arc<Self>,
+        _sender: Arc<NrfDriver>,
+        event: GapEventConnected,
+    ) -> Option<SubscriberAction> {
         if let BleGapRole::Peripheral = event.role {
             info!("Peer connected!");
-            self.central.peer_connected(event.conn_handle, &event.address, &event.conn_params);
+            self.central
+                .peer_connected(event.conn_handle, &event.address, &event.conn_params);
         }
         return None;
     }
 }
 
 impl Subscriber<NrfDriver, GapEventDisconnected> for BleDevice {
-    fn handle(self: Arc<Self>, _sender: Arc<NrfDriver>, _event: GapEventDisconnected) -> Option<SubscriberAction> {
+    fn handle(
+        self: Arc<Self>,
+        _sender: Arc<NrfDriver>,
+        _event: GapEventDisconnected,
+    ) -> Option<SubscriberAction> {
         // TODO
         return None;
     }

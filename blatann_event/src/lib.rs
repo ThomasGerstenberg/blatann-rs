@@ -1,20 +1,20 @@
 #[macro_use]
 extern crate log;
 
-use std::sync::Arc;
 use std::sync::mpsc::{RecvError, RecvTimeoutError};
+use std::sync::Arc;
 use std::time::Duration;
 
 use uuid::Uuid;
 
-pub mod publisher;
 pub mod event_waitable;
+pub mod publisher;
 
-pub use publisher::Publisher;
 pub use event_waitable::EventWaitable;
+pub use publisher::Publisher;
 
 pub enum SubscriberAction {
-    Unsubscribe
+    Unsubscribe,
 }
 
 pub trait Subscriber<TSender, TEvent> {
@@ -38,6 +38,8 @@ pub trait Waitable<T> {
     fn wait(&self) -> Result<T, RecvError>;
 }
 
-pub trait AsyncEventHandler<T>{
-    fn then<F>(&self, f: F) where F: 'static + FnOnce(T);
+pub trait AsyncEventHandler<T> {
+    fn then<F>(&self, f: F)
+    where
+        F: 'static + FnOnce(T);
 }

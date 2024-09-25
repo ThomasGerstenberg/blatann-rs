@@ -5,7 +5,6 @@ pub const UNIT_0_625_MS: Units = 625;
 pub const UNIT_1_25_MS: Units = 1250;
 pub const UNIT_10_MS: Units = 10000;
 
-
 pub trait UnitsMethods {
     fn to_ms(&self, resolution: Units) -> Milliseconds;
 

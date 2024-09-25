@@ -13,14 +13,14 @@ use std::sync::Mutex;
 
 use crate::manager::NrfDriverManager;
 
-pub mod error;
-pub mod common;
-pub mod gap;
 pub mod ble_event;
+pub mod common;
 pub mod driver;
+pub mod driver_events;
+pub mod error;
+pub mod gap;
 pub mod manager;
 pub mod utils;
-pub mod driver_events;
 
 #[allow(non_upper_case_globals)]
 #[allow(non_camel_case_types)]

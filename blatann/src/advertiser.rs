@@ -1,7 +1,7 @@
 use std::sync::{Arc, Mutex};
 
-use blatann_event::{Subscribable, Subscriber, SubscriberAction, Publisher};
 use blatann_event::event_waitable::EventWaitable;
+use blatann_event::{Publisher, Subscribable, Subscriber, SubscriberAction};
 
 use nrf_driver::driver::NrfDriver;
 use nrf_driver::error::{NrfError, NrfErrorType, NrfResult};
@@ -10,10 +10,10 @@ use nrf_driver::gap::events::GapEventTimeout;
 use nrf_driver::gap::types::*;
 use nrf_driver::utils::Milliseconds;
 
-use crate::events::{AdvertisingTimeoutEvent, ConnectionEvent, DisconnectionEvent};
 use crate::advertise_data::{AdvData, MAX_ADVERTISE_ENCODED_LEN};
-use crate::peer::Peer;
 use crate::connection_waitable::ConnectionWaitable;
+use crate::events::{AdvertisingTimeoutEvent, ConnectionEvent, DisconnectionEvent};
+use crate::peer::Peer;
 
 pub type AdvType = BleGapAdvertisingType;
 
@@ -34,7 +34,7 @@ impl Default for AdvState {
             auto_restart: false,
             adv_type: AdvType::ConnectableUndirected,
             interval: 100_f64,
-            timeout_s: ADVERTISE_FOREVER
+            timeout_s: ADVERTISE_FOREVER,
         }
     }
 }
@@ -45,7 +45,6 @@ pub struct Advertiser {
     pub on_timeout: Publisher<Self, AdvertisingTimeoutEvent>,
     state: Mutex<AdvState>,
 }
-
 
 impl Advertiser {
     pub(crate) fn new(driver: &Arc<NrfDriver>, central: &Arc<Peer>) -> Arc<Self> {
@@ -63,7 +62,13 @@ impl Advertiser {
         return advertiser;
     }
 
-    pub fn set_params(&self, interval: Milliseconds, timeout_s: u16, adv_type: AdvType, auto_restart: bool) {
+    pub fn set_params(
+        &self,
+        interval: Milliseconds,
+        timeout_s: u16,
+        adv_type: AdvType,
+        auto_restart: bool,
+    ) {
         let mut state = self.state.lock().unwrap();
         state.interval = interval;
         state.timeout_s = timeout_s;
@@ -71,9 +76,13 @@ impl Advertiser {
         state.auto_restart = auto_restart;
     }
 
-    pub fn set_data(&self, advertise_data: Option<&AdvData>, scan_response: Option<&AdvData>) -> Result<(), NrfError> {
-        let adv_data = advertise_data.and_then(|d| { Some(d.serialize()) });
-        let scan_data = scan_response.and_then(|d| { Some(d.serialize()) });
+    pub fn set_data(
+        &self,
+        advertise_data: Option<&AdvData>,
+        scan_response: Option<&AdvData>,
+    ) -> Result<(), NrfError> {
+        let adv_data = advertise_data.and_then(|d| Some(d.serialize()));
+        let scan_data = scan_response.and_then(|d| Some(d.serialize()));
 
         if let Some(a) = &adv_data {
             if a.len() > MAX_ADVERTISE_ENCODED_LEN {
@@ -90,10 +99,12 @@ impl Advertiser {
     }
 
     pub fn start(&self) -> NrfResult<Arc<ConnectionWaitable>> {
-        self._stop().and_then(|_| {
-            self._start()
-        }).and_then(|_| {
-            Ok(ConnectionWaitable::new(self.driver.clone(), self.central.clone(), BleGapRole::Peripheral))
+        self._stop().and_then(|_| self._start()).and_then(|_| {
+            Ok(ConnectionWaitable::new(
+                self.driver.clone(),
+                self.central.clone(),
+                BleGapRole::Peripheral,
+            ))
         })
     }
 
@@ -123,14 +134,18 @@ impl Advertiser {
             Err(e) => match e.error_type {
                 NrfErrorType::Success => Ok(()),
                 NrfErrorType::InvalidState => Ok(()),
-                _ => Err(e)
-            }
+                _ => Err(e),
+            },
         }
     }
 }
 
 impl Subscriber<Peer, ConnectionEvent> for Advertiser {
-    fn handle(self: Arc<Self>, _sender: Arc<Peer>, _event: ConnectionEvent) -> Option<SubscriberAction> {
+    fn handle(
+        self: Arc<Self>,
+        _sender: Arc<Peer>,
+        _event: ConnectionEvent,
+    ) -> Option<SubscriberAction> {
         let mut state = self.state.lock().unwrap();
         state.is_advertising = false;
         return None;
@@ -138,10 +153,12 @@ impl Subscriber<Peer, ConnectionEvent> for Advertiser {
 }
 
 impl Subscriber<Peer, DisconnectionEvent> for Advertiser {
-    fn handle(self: Arc<Self>, _sender: Arc<Peer>, _event: DisconnectionEvent) -> Option<SubscriberAction> {
-        let auto_restart_enabled = {
-            self.state.lock().unwrap().auto_restart
-        };
+    fn handle(
+        self: Arc<Self>,
+        _sender: Arc<Peer>,
+        _event: DisconnectionEvent,
+    ) -> Option<SubscriberAction> {
+        let auto_restart_enabled = { self.state.lock().unwrap().auto_restart };
 
         if auto_restart_enabled {
             info!("Re-enabling advertising after disconnect");
@@ -155,10 +172,15 @@ impl Subscriber<Peer, DisconnectionEvent> for Advertiser {
 }
 
 impl Subscriber<NrfDriver, GapEventTimeout> for Advertiser {
-    fn handle(self: Arc<Self>, _sender: Arc<NrfDriver>, event: GapEventTimeout) -> Option<SubscriberAction> {
+    fn handle(
+        self: Arc<Self>,
+        _sender: Arc<NrfDriver>,
+        event: GapEventTimeout,
+    ) -> Option<SubscriberAction> {
         if let BleGapTimeoutSource::Advertising = event.src {
             // Notify that advertising timed out first which may call stop() to disable auto-restart
-            self.on_timeout.dispatch(self.clone(), AdvertisingTimeoutEvent {});
+            self.on_timeout
+                .dispatch(self.clone(), AdvertisingTimeoutEvent {});
 
             let mut state = self.state.lock().unwrap();
             if state.auto_restart {

@@ -1,5 +1,5 @@
-use nrf_driver::common::enums::BleHciStatus;
 use crate::peer::Phy;
+use nrf_driver::common::enums::BleHciStatus;
 
 // No params
 #[derive(Debug, Copy, Clone)]

@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use blatann_event::{Publisher, Unsubscribable, Subscribable, Subscriber};
+use blatann_event::{Publisher, Subscribable, Subscriber, Unsubscribable};
 use uuid::Uuid;
 
 use crate::ble_event::*;
@@ -14,17 +14,16 @@ trait NrfPublisherType: Unsubscribable {
     fn name(&self) -> &str;
 }
 
-
 pub struct NrfEventPublisher<TEvent: BleEventDataType> {
     id: BleEventId,
-    publisher: Publisher<NrfDriver, TEvent>
+    publisher: Publisher<NrfDriver, TEvent>,
 }
 
 impl<TEvent: BleEventDataType> NrfEventPublisher<TEvent> {
     pub fn new(name: &str) -> Self {
         Self {
             id: TEvent::id(),
-            publisher: Publisher::new(name)
+            publisher: Publisher::new(name),
         }
     }
 
@@ -70,7 +69,6 @@ impl<TEvent: BleEventDataType> Unsubscribable for NrfEventPublisher<TEvent> {
         self.publisher.unsubscribe(id)
     }
 }
-
 
 #[allow(dead_code)]
 pub struct NrfDriverEvents {
@@ -122,30 +120,33 @@ impl NrfDriverEvents {
             BleEventData::Common(sub_event) => match sub_event {
                 CommonEvent::MemRequest(e) => self.user_mem_request.dispatch(driver, e),
                 CommonEvent::MemRelease(e) => self.user_mem_release.dispatch(driver, e),
-            }
+            },
             BleEventData::Gap(sub_event) => match sub_event {
                 GapEvent::Timeout(e) => self.gap_timeout.dispatch(driver, e),
                 GapEvent::Connected(e) => self.connected.dispatch(driver, e),
                 GapEvent::Disconnected(e) => self.disconnected.dispatch(driver, e),
                 GapEvent::PhyUpdateRequest(e) => self.phy_update_request.dispatch(driver, e),
                 GapEvent::PhyUpdate(e) => self.phy_update.dispatch(driver, e),
-                GapEvent::DataLengthUpdateRequest(e) => self.data_length_update_request.dispatch(driver, e),
+                GapEvent::DataLengthUpdateRequest(e) => {
+                    self.data_length_update_request.dispatch(driver, e)
+                }
                 GapEvent::DataLengthUpdate(e) => self.data_length_update.dispatch(driver, e),
-            }
+            },
         };
     }
 
     pub(crate) fn unsubscribe(&self, event_id: BleEventId, subscription_id: Uuid) {
-        let event_map = self.events()
+        let event_map = self
+            .events()
             .iter()
             .cloned()
-            .map(|e| { (e.id().into(), e) })
+            .map(|e| (e.id().into(), e))
             .collect::<HashMap<u16, &dyn NrfPublisherType>>();
 
         let event_val = event_id.into();
         match event_map.get(&event_val) {
             None => warn!("Unknown event id {}!", event_val),
-            Some(p) => p.unsubscribe(subscription_id)
+            Some(p) => p.unsubscribe(subscription_id),
         }
     }
 }

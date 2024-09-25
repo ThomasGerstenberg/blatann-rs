@@ -40,15 +40,20 @@ pub enum NrfErrorType {
     SdRpcNoResponse = ffi::NRF_ERROR_SD_RPC_NO_RESPONSE,
     SdRpcInvalidState = ffi::NRF_ERROR_SD_RPC_INVALID_STATE,
     SdRpcSerializationTransport = ffi::NRF_ERROR_SD_RPC_SERIALIZATION_TRANSPORT,
-    SdRpcSerializationTransportInvalidState = ffi::NRF_ERROR_SD_RPC_SERIALIZATION_TRANSPORT_INVALID_STATE,
-    SdRpcSerializationTransportNoResponse = ffi::NRF_ERROR_SD_RPC_SERIALIZATION_TRANSPORT_NO_RESPONSE,
-    SdRpcSerializationTransportAlreadyOpen = ffi::NRF_ERROR_SD_RPC_SERIALIZATION_TRANSPORT_ALREADY_OPEN,
-    SdRpcSerializationTransportAlreadyClosed = ffi::NRF_ERROR_SD_RPC_SERIALIZATION_TRANSPORT_ALREADY_CLOSED,
+    SdRpcSerializationTransportInvalidState =
+        ffi::NRF_ERROR_SD_RPC_SERIALIZATION_TRANSPORT_INVALID_STATE,
+    SdRpcSerializationTransportNoResponse =
+        ffi::NRF_ERROR_SD_RPC_SERIALIZATION_TRANSPORT_NO_RESPONSE,
+    SdRpcSerializationTransportAlreadyOpen =
+        ffi::NRF_ERROR_SD_RPC_SERIALIZATION_TRANSPORT_ALREADY_OPEN,
+    SdRpcSerializationTransportAlreadyClosed =
+        ffi::NRF_ERROR_SD_RPC_SERIALIZATION_TRANSPORT_ALREADY_CLOSED,
     SdRpcH5Transport = ffi::NRF_ERROR_SD_RPC_H5_TRANSPORT,
     SdRpcH5TransportState = ffi::NRF_ERROR_SD_RPC_H5_TRANSPORT_STATE,
     SdRpcH5TransportNoResponse = ffi::NRF_ERROR_SD_RPC_H5_TRANSPORT_NO_RESPONSE,
     SdRpcH5TransportSlipPayloadSize = ffi::NRF_ERROR_SD_RPC_H5_TRANSPORT_SLIP_PAYLOAD_SIZE,
-    SdRpcH5TransportSlipCalculatedPayloadSize = ffi::NRF_ERROR_SD_RPC_H5_TRANSPORT_SLIP_CALCULATED_PAYLOAD_SIZE,
+    SdRpcH5TransportSlipCalculatedPayloadSize =
+        ffi::NRF_ERROR_SD_RPC_H5_TRANSPORT_SLIP_CALCULATED_PAYLOAD_SIZE,
     SdRpcH5TransportSlipDecoding = ffi::NRF_ERROR_SD_RPC_H5_TRANSPORT_SLIP_DECODING,
     SdRpcH5TransportHeaderChecksum = ffi::NRF_ERROR_SD_RPC_H5_TRANSPORT_HEADER_CHECKSUM,
     SdRpcH5TransportPacketChecksum = ffi::NRF_ERROR_SD_RPC_H5_TRANSPORT_PACKET_CHECKSUM,
@@ -67,7 +72,7 @@ impl NrfErrorType {
     pub fn from(err: u32) -> Self {
         match FromPrimitive::from_u32(err) {
             Some(x) => x,
-            None => NrfErrorType::Unknown
+            None => NrfErrorType::Unknown,
         }
     }
 
@@ -91,7 +96,8 @@ impl NrfErrorType {
     }
 
     pub fn to_result_typed<T, F>(self, f: F) -> NrfResult<T>
-        where F: FnOnce() -> T
+    where
+        F: FnOnce() -> T,
     {
         let result = NrfError {
             error_type: self,
@@ -104,7 +110,6 @@ impl NrfErrorType {
         }
     }
 }
-
 
 #[derive(Debug, Copy, Clone)]
 pub struct NrfError {
@@ -129,7 +134,8 @@ impl NrfError {
     }
 
     pub fn make_result_typed<T: Sized, F>(err: u32, f: F) -> NrfResult<T>
-        where F: FnOnce() -> T
+    where
+        F: FnOnce() -> T,
     {
         if err == ffi::NRF_SUCCESS {
             Ok(f())
@@ -151,7 +157,9 @@ impl NrfError {
     }
 
     pub fn to_result_typed<T: Sized, F>(self, f: F) -> NrfResult<T>
-        where F: FnOnce() -> T {
+    where
+        F: FnOnce() -> T,
+    {
         if let NrfErrorType::Success = self.error_type {
             Ok(f())
         } else {
@@ -159,7 +167,6 @@ impl NrfError {
         }
     }
 }
-
 
 impl fmt::Display for NrfError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {

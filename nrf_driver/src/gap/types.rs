@@ -9,13 +9,11 @@ use super::enums::*;
 
 const ADDR_LEN: usize = 6;
 
-
 #[derive(Debug, Copy, Clone)]
 pub struct BleGapAddress {
     pub address_type: BleGapAddressType,
     pub address: [u8; ADDR_LEN],
 }
-
 
 impl BleGapAddress {
     pub fn new(addr_str: String, addr_type: BleGapAddressType) -> Self {
@@ -34,7 +32,11 @@ impl BleGapAddress {
     }
 
     pub fn to_string(&self) -> String {
-        let parts = self.address.iter().map(|x| format! {"{:02X}", x}).collect::<Vec<String>>();
+        let parts = self
+            .address
+            .iter()
+            .map(|x| format! {"{:02X}", x})
+            .collect::<Vec<String>>();
         return parts.join(":");
     }
 }
@@ -59,11 +61,10 @@ impl Into<ffi::ble_gap_addr_t> for &BleGapAddress {
         ffi::ble_gap_addr_t {
             _bitfield_1: ffi::ble_gap_addr_t::new_bitfield_1(0, self.address_type as u8),
             addr,
-            _bitfield_align_1: []
+            _bitfield_align_1: [],
         }
     }
 }
-
 
 #[derive(Debug, Copy, Clone)]
 pub struct BleGapAdvParams {
@@ -72,9 +73,12 @@ pub struct BleGapAdvParams {
     pub advertising_type: BleGapAdvertisingType,
 }
 
-
 impl BleGapAdvParams {
-    pub fn new(interval: Milliseconds, timeout_s: u16, advertising_type: BleGapAdvertisingType) -> Self {
+    pub fn new(
+        interval: Milliseconds,
+        timeout_s: u16,
+        advertising_type: BleGapAdvertisingType,
+    ) -> Self {
         Self {
             interval,
             timeout_s,
@@ -97,24 +101,27 @@ impl Into<ffi::ble_gap_adv_params_t> for &BleGapAdvParams {
             timeout: self.timeout_s,
             channel_mask: ffi::ble_gap_adv_ch_mask_t {
                 _bitfield_1: ffi::ble_gap_adv_ch_mask_t::new_bitfield_1(0, 0, 0),
-                _bitfield_align_1: []
+                _bitfield_align_1: [],
             },
         }
     }
 }
-
 
 #[derive(Debug, Copy, Clone)]
 pub struct BleGapConnParams {
     pub min_interval: Milliseconds,
     pub max_interval: Milliseconds,
     pub timeout: Milliseconds,
-    pub slave_latency: u16
+    pub slave_latency: u16,
 }
 
 impl BleGapConnParams {
-    pub fn new(min_interval: Milliseconds, max_interval: Milliseconds,
-               timeout: Milliseconds, slave_latency: u16) -> Self {
+    pub fn new(
+        min_interval: Milliseconds,
+        max_interval: Milliseconds,
+        timeout: Milliseconds,
+        slave_latency: u16,
+    ) -> Self {
         Self {
             min_interval,
             max_interval,
@@ -146,7 +153,6 @@ impl Into<ffi::ble_gap_conn_params_t> for &BleGapConnParams {
     }
 }
 
-
 #[derive(Debug, Copy, Clone)]
 pub struct BleGapPhys {
     pub tx_phys: BleGapPhy,
@@ -155,13 +161,9 @@ pub struct BleGapPhys {
 
 impl BleGapPhys {
     pub fn new(tx_phys: BleGapPhy, rx_phys: BleGapPhy) -> Self {
-        Self {
-            tx_phys,
-            rx_phys,
-        }
+        Self { tx_phys, rx_phys }
     }
 }
-
 
 impl Into<ffi::ble_gap_phys_t> for BleGapPhys {
     fn into(self) -> ffi::ble_gap_phys_t {
@@ -183,7 +185,10 @@ impl From<ffi::ble_gap_phys_t> for BleGapPhys {
 
 impl Default for BleGapPhys {
     fn default() -> Self {
-        Self { tx_phys: BleGapPhy::AUTO, rx_phys: BleGapPhy::AUTO}
+        Self {
+            tx_phys: BleGapPhy::AUTO,
+            rx_phys: BleGapPhy::AUTO,
+        }
     }
 }
 
@@ -205,7 +210,6 @@ impl From<ffi::ble_gap_data_length_params_t> for BleGapDataLengthParams {
         }
     }
 }
-
 
 impl Into<ffi::ble_gap_data_length_params_t> for BleGapDataLengthParams {
     fn into(self) -> ffi::ble_gap_data_length_params_t {

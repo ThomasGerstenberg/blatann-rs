@@ -1,11 +1,13 @@
-use std::cell::RefCell;
-use nrf_driver::gap::enums::{BleGapRole, BleGapTimeoutSource};
 use crate::peer::Peer;
-use std::sync::{Arc, mpsc, Mutex};
+use blatann_event::{
+    AsyncEventHandler, Subscribable, Subscriber, SubscriberAction, Unsubscribable, Waitable,
+};
 use nrf_driver::driver::NrfDriver;
-use blatann_event::{Subscriber, SubscriberAction, Waitable, Subscribable, Unsubscribable, AsyncEventHandler};
-use nrf_driver::gap::events::{GapEventTimeout, GapEventConnected};
+use nrf_driver::gap::enums::{BleGapRole, BleGapTimeoutSource};
+use nrf_driver::gap::events::{GapEventConnected, GapEventTimeout};
+use std::cell::RefCell;
 use std::sync::mpsc::{RecvError, RecvTimeoutError};
+use std::sync::{mpsc, Arc, Mutex};
 use std::time::Duration;
 use uuid::Uuid;
 
@@ -16,9 +18,8 @@ pub struct ConnectionWaitable {
     receiver: mpsc::Receiver<bool>,
     timeout_sub_id: RefCell<Option<Uuid>>,
     connect_sub_id: RefCell<Option<Uuid>>,
-    callbacks: Mutex<Vec<Box<dyn FnOnce(Option<Arc<Peer>>)>>>
+    callbacks: Mutex<Vec<Box<dyn FnOnce(Option<Arc<Peer>>)>>>,
 }
-
 
 impl ConnectionWaitable {
     pub(crate) fn new(driver: Arc<NrfDriver>, peer: Arc<Peer>, role: BleGapRole) -> Arc<Self> {
@@ -30,7 +31,7 @@ impl ConnectionWaitable {
             receiver,
             timeout_sub_id: RefCell::new(None),
             connect_sub_id: RefCell::new(None),
-            callbacks: Mutex::new(vec![])
+            callbacks: Mutex::new(vec![]),
         });
 
         let connected_uuid = driver.events.connected.subscribe(waitable.clone());
@@ -66,7 +67,6 @@ impl ConnectionWaitable {
 impl Waitable<Option<Arc<Peer>>> for ConnectionWaitable {
     fn wait_timeout(&self, timeout: Duration) -> Result<Option<Arc<Peer>>, RecvTimeoutError> {
         self.receiver.recv_timeout(timeout).and_then(|result| {
-
             if result {
                 Ok(Some(self.peer.clone()))
             } else {
@@ -88,18 +88,25 @@ impl Waitable<Option<Arc<Peer>>> for ConnectionWaitable {
 
 impl AsyncEventHandler<Option<Arc<Peer>>> for ConnectionWaitable {
     fn then<F>(&self, f: F)
-        where F: 'static + FnOnce(Option<Arc<Peer>>){
+    where
+        F: 'static + FnOnce(Option<Arc<Peer>>),
+    {
         let mut callbacks = self.callbacks.lock().unwrap();
         callbacks.push(Box::new(f))
     }
 }
 
-
 impl Subscriber<NrfDriver, GapEventTimeout> for ConnectionWaitable {
-    fn handle(self: Arc<Self>, sender: Arc<NrfDriver>, event: GapEventTimeout) -> Option<SubscriberAction> {
+    fn handle(
+        self: Arc<Self>,
+        sender: Arc<NrfDriver>,
+        event: GapEventTimeout,
+    ) -> Option<SubscriberAction> {
         match (self.role, event.src) {
-            (BleGapRole::Peripheral, BleGapTimeoutSource::Advertising) |
-            (BleGapRole::Central, BleGapTimeoutSource::Conn) => self.event_received(sender, false),
+            (BleGapRole::Peripheral, BleGapTimeoutSource::Advertising)
+            | (BleGapRole::Central, BleGapTimeoutSource::Conn) => {
+                self.event_received(sender, false)
+            }
             _ => {}
         }
 
@@ -108,10 +115,14 @@ impl Subscriber<NrfDriver, GapEventTimeout> for ConnectionWaitable {
 }
 
 impl Subscriber<NrfDriver, GapEventConnected> for ConnectionWaitable {
-    fn handle(self: Arc<Self>, sender: Arc<NrfDriver>, event: GapEventConnected) -> Option<SubscriberAction> {
+    fn handle(
+        self: Arc<Self>,
+        sender: Arc<NrfDriver>,
+        event: GapEventConnected,
+    ) -> Option<SubscriberAction> {
         match (self.role, event.role) {
-            (BleGapRole::Peripheral, BleGapRole::Peripheral) |
-            (BleGapRole::Central, BleGapRole::Central) => self.event_received(sender, true),
+            (BleGapRole::Peripheral, BleGapRole::Peripheral)
+            | (BleGapRole::Central, BleGapRole::Central) => self.event_received(sender, true),
             _ => {}
         };
 

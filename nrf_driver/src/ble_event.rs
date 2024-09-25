@@ -1,8 +1,8 @@
 use num_traits::{FromPrimitive, ToPrimitive};
 
 use crate::common::events::*;
-use crate::ffi::{ble_common_evt_t, ble_evt_t};
 use crate::ffi;
+use crate::ffi::{ble_common_evt_t, ble_evt_t};
 use crate::gap::events::*;
 
 #[derive(Copy, Clone, Debug)]
@@ -27,11 +27,10 @@ impl Into<u16> for BleEventId {
     fn into(self) -> u16 {
         match self {
             BleEventId::Common(x) => x as u16,
-            BleEventId::Gap(x) => x as u16
+            BleEventId::Gap(x) => x as u16,
         }
     }
 }
-
 
 #[repr(u16)]
 #[derive(FromPrimitive, ToPrimitive, Copy, Clone, Debug)]
@@ -52,7 +51,6 @@ impl Into<BleEventId> for CommonEventId {
     }
 }
 
-
 #[derive(Copy, Clone, Debug)]
 pub enum CommonEvent {
     MemRequest(CommonEventMemRequest),
@@ -62,12 +60,16 @@ pub enum CommonEvent {
 impl CommonEvent {
     pub(crate) unsafe fn from_c(id: CommonEventId, e: *const ble_common_evt_t) -> Self {
         match id {
-            CommonEventId::MemRequest => CommonEvent::MemRequest(CommonEventMemRequest::from_c((*e).conn_handle, &(*e).params.user_mem_request)),
-            CommonEventId::MemRelease => CommonEvent::MemRelease(CommonEventMemRelease::from_c(&(*e).params.user_mem_release))
+            CommonEventId::MemRequest => CommonEvent::MemRequest(CommonEventMemRequest::from_c(
+                (*e).conn_handle,
+                &(*e).params.user_mem_request,
+            )),
+            CommonEventId::MemRelease => CommonEvent::MemRelease(CommonEventMemRelease::from_c(
+                &(*e).params.user_mem_release,
+            )),
         }
     }
 }
-
 
 #[repr(u16)]
 #[derive(FromPrimitive, ToPrimitive, Copy, Clone, Debug)]
@@ -123,8 +125,13 @@ impl GapEvent {
         let conn_handle = (*e).conn_handle;
         let params = &(*e).params;
         match id {
-            GapEventId::Connected => GapEvent::Connected(GapEventConnected::from_c(conn_handle, &params.connected)),
-            GapEventId::Disconnected => GapEvent::Disconnected(GapEventDisconnected::from_c(conn_handle, &params.disconnected)),
+            GapEventId::Connected => {
+                GapEvent::Connected(GapEventConnected::from_c(conn_handle, &params.connected))
+            }
+            GapEventId::Disconnected => GapEvent::Disconnected(GapEventDisconnected::from_c(
+                conn_handle,
+                &params.disconnected,
+            )),
             // GapEventId::ConnParamUpdate => unimplemented!(),
             // GapEventId::SecParamsRequest => unimplemented!(),
             // GapEventId::SecInfoRequest => unimplemented!(),
@@ -134,16 +141,29 @@ impl GapEvent {
             // GapEventId::LescDhkeyRequest => unimplemented!(),
             // GapEventId::AuthStatus => unimplemented!(),
             // GapEventId::ConnSecUpdate => unimplemented!(),
-            GapEventId::Timeout => GapEvent::Timeout(GapEventTimeout::from_c(conn_handle, &params.timeout)),
+            GapEventId::Timeout => {
+                GapEvent::Timeout(GapEventTimeout::from_c(conn_handle, &params.timeout))
+            }
             // GapEventId::RssiChanged => unimplemented!(),
             // GapEventId::AdvReport => unimplemented!(),
             // GapEventId::SecRequest => unimplemented!(),
             // GapEventId::ConnParamUpdateRequest => unimplemented!(),
             // GapEventId::ScanReqReport => unimplemented!(),
-            GapEventId::PhyUpdateRequest => GapEvent::PhyUpdateRequest(GapEventPhyUpdateRequest::from_c(conn_handle, &params.phy_update_request)),
-            GapEventId::PhyUpdate => GapEvent::PhyUpdate(GapEventPhyUpdate::from_c(conn_handle, &params.phy_update)),
-            GapEventId::DataLengthUpdateRequest => GapEvent::DataLengthUpdateRequest(GapEventDataLengthUpdateRequest::from_c(conn_handle, &params.data_length_update_request)),
-            GapEventId::DataLengthUpdate => GapEvent::DataLengthUpdate(GapEventDataLengthUpdate::from_c(conn_handle, &params.data_length_update)),
+            GapEventId::PhyUpdateRequest => GapEvent::PhyUpdateRequest(
+                GapEventPhyUpdateRequest::from_c(conn_handle, &params.phy_update_request),
+            ),
+            GapEventId::PhyUpdate => {
+                GapEvent::PhyUpdate(GapEventPhyUpdate::from_c(conn_handle, &params.phy_update))
+            }
+            GapEventId::DataLengthUpdateRequest => {
+                GapEvent::DataLengthUpdateRequest(GapEventDataLengthUpdateRequest::from_c(
+                    conn_handle,
+                    &params.data_length_update_request,
+                ))
+            }
+            GapEventId::DataLengthUpdate => GapEvent::DataLengthUpdate(
+                GapEventDataLengthUpdate::from_c(conn_handle, &params.data_length_update),
+            ),
         }
     }
 }
