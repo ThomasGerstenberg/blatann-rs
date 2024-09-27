@@ -9,7 +9,7 @@ use blatann_event::{AsyncEventHandler, Subscribable, Subscriber, SubscriberActio
 use env_logger;
 use env_logger::Env;
 
-use blatann::advertise_data::{AdvData, AdvDataType};
+use blatann::advertise_data::{AdvData, AdvertisingFlags};
 use blatann::advertiser::{AdvType, Advertiser};
 use blatann::device::BleDevice;
 use blatann::events::{AdvertisingTimeoutEvent, ConnectionEvent};
@@ -29,7 +29,10 @@ fn main() {
     device.advertiser.on_timeout.subscribe(handler);
 
     let mut adv_data = AdvData::default();
-    adv_data.add_entry(AdvDataType::CompleteLocalName as u8, b"Blatann-rs!!");
+    adv_data.set_flags(
+        AdvertisingFlags::GENERAL_DISCOVERY_MODE | AdvertisingFlags::BR_EDR_NOT_SUPPORTED,
+    );
+    adv_data.set_name("Blatann-rs!!", true);
     device
         .advertiser
         .set_params(50_f64, 50, AdvType::ConnectableUndirected, false);

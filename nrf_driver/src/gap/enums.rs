@@ -65,6 +65,12 @@ pub enum BleAdvDataType {
     ManufacturerSpecificData = ffi::BLE_GAP_AD_TYPE_MANUFACTURER_SPECIFIC_DATA as u8,
 }
 
+impl From<BleAdvDataType> for u8 {
+    fn from(value: BleAdvDataType) -> Self {
+        value as u8
+    }
+}
+
 #[repr(u8)]
 #[derive(FromPrimitive, Copy, Clone, Debug)]
 pub enum BleGapRole {

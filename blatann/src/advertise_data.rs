@@ -13,6 +13,12 @@ bitflags! {
     }
 }
 
+impl From<AdvertisingFlags> for u8 {
+    fn from(value: AdvertisingFlags) -> Self {
+        value.bits()
+    }
+}
+
 pub type AdvDataType = BleAdvDataType;
 
 // TODO: Rest of API
@@ -33,6 +39,49 @@ impl AdvData {
         self.entries.insert(adv_type, data.to_vec());
     }
 
+    pub fn set_flags(&mut self, flags: AdvertisingFlags) {
+        self.entries
+            .insert(AdvDataType::Flags.into(), vec![flags.bits()]);
+    }
+
+    pub fn set_name(&mut self, name: &str, is_complete: bool) {
+        let adv_type = if is_complete {
+            AdvDataType::CompleteLocalName
+        } else {
+            AdvDataType::ShortLocalName
+        };
+        let data = name.as_bytes();
+        self.add_entry(adv_type.into(), data.into());
+    }
+
+    pub fn set_service_uuid16s(&mut self, uuids: &[u16], is_complete_list: bool) {
+        let adv_type = if is_complete_list {
+            AdvDataType::Service16bitUuidComplete
+        } else {
+            AdvDataType::Service16bitUuidMoreAvailable
+        };
+        let data: Vec<u8> = uuids
+            .iter()
+            .map(|x| [(x & 0xFF) as u8, (x >> 8) as u8])
+            .flatten()
+            .collect();
+        self.add_entry(adv_type.into(), &data);
+    }
+
+    pub fn set_service_uuid128s(&mut self, uuids: &[uuid::Uuid], is_complete_list: bool) {
+        let adv_type = if is_complete_list {
+            AdvDataType::Service128bitUuidComplete
+        } else {
+            AdvDataType::Service128bitUuidMoreAvailable
+        };
+        let data: Vec<u8> = uuids
+            .iter()
+            .map(|x| x.as_bytes().to_owned())
+            .flatten()
+            .collect();
+        self.add_entry(adv_type.into(), &data);
+    }
+
     pub fn serialize(&self) -> Vec<u8> {
         // Data is in length-type-value format
         let mut adv_data = Vec::new();
@@ -42,6 +91,15 @@ impl AdvData {
             adv_data.extend(data);
         }
 
-        return adv_data;
+        adv_data
+    }
+
+    pub fn validate(&self) -> Result<(), String> {
+        let encoded_length = self.serialize().len();
+        if encoded_length <= MAX_ADVERTISE_ENCODED_LEN {
+            Ok(())
+        } else {
+            Err(format!("Encoded length too long: {} bytes", encoded_length))
+        }
     }
 }
